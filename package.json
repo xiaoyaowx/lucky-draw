@@ -1,0 +1,28 @@
+{
+  "name": "lucky-draw",
+  "version": "1.0.0",
+  "private": false,
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "next build",
+    "start": "cross-env NODE_ENV=production tsx server.ts",
+    "pack": "node scripts/build-exe.js"
+  },
+  "dependencies": {
+    "@types/node": "^25.1.0",
+    "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "typescript": "^5.9.3",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "caxa": "^3.0.1",
+    "cross-env": "^10.1.0",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.21.0"
+  }
+}

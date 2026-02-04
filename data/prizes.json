@@ -1,0 +1,142 @@
+{
+  "rounds": [
+    {
+      "id": 1,
+      "name": "第一轮抽奖",
+      "prizes": [
+        {
+          "id": "1-1",
+          "level": "特等奖",
+          "name": "iPhone 16 Pro",
+          "quantity": 1,
+          "color": "#FFD700",
+          "sponsor": "XX科技有限公司"
+        },
+        {
+          "id": "1-2",
+          "level": "一等奖",
+          "name": "Apple Watch",
+          "quantity": 3,
+          "color": "#FFA500",
+          "sponsor": "XX网络科技"
+        },
+        {
+          "id": "1-3",
+          "level": "二等奖",
+          "name": "小米平板",
+          "quantity": 5,
+          "color": "#FFEC8B",
+          "sponsor": "XX信息技术"
+        },
+        {
+          "id": "1-4",
+          "level": "三等奖",
+          "name": "蓝牙耳机",
+          "quantity": 10,
+          "color": "#87CEFA",
+          "sponsor": "XX电子商务"
+        },
+        {
+          "id": "1-5",
+          "level": "幸运奖",
+          "name": "精美礼品",
+          "quantity": 20,
+          "color": "#98FB98",
+          "sponsor": "XX贸易公司"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "第二轮抽奖",
+      "prizes": [
+        {
+          "id": "2-1",
+          "level": "特等奖",
+          "name": "MacBook Air",
+          "quantity": 1,
+          "color": "#FFD700",
+          "sponsor": "XX投资集团"
+        },
+        {
+          "id": "2-2",
+          "level": "一等奖",
+          "name": "戴森吸尘器",
+          "quantity": 2,
+          "color": "#FFA500",
+          "sponsor": "XX实业公司"
+        },
+        {
+          "id": "2-3",
+          "level": "二等奖",
+          "name": "电动牙刷套装",
+          "quantity": 5,
+          "color": "#FFEC8B",
+          "sponsor": "XX健康科技"
+        },
+        {
+          "id": "2-4",
+          "level": "三等奖",
+          "name": "保温杯礼盒",
+          "quantity": 10,
+          "color": "#87CEFA",
+          "sponsor": "XX日用品公司"
+        },
+        {
+          "id": "2-5",
+          "level": "幸运奖",
+          "name": "购物卡 100 元",
+          "quantity": 30,
+          "color": "#98FB98",
+          "sponsor": "XX商贸中心"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "第三轮抽奖",
+      "prizes": [
+        {
+          "id": "3-1",
+          "level": "特等奖",
+          "name": "海南双人游",
+          "quantity": 1,
+          "color": "#FFD700",
+          "sponsor": "XX旅行社"
+        },
+        {
+          "id": "3-2",
+          "level": "一等奖",
+          "name": "智能手表",
+          "quantity": 3,
+          "color": "#FFA500",
+          "sponsor": "XX数码科技"
+        },
+        {
+          "id": "3-3",
+          "level": "二等奖",
+          "name": "移动电源",
+          "quantity": 8,
+          "color": "#FFEC8B",
+          "sponsor": "XX能源科技"
+        },
+        {
+          "id": "3-4",
+          "level": "三等奖",
+          "name": "精品茶叶礼盒",
+          "quantity": 15,
+          "color": "#87CEFA",
+          "sponsor": "XX茶业公司"
+        },
+        {
+          "id": "3-5",
+          "level": "幸运奖",
+          "name": "定制文创礼品",
+          "quantity": 50,
+          "color": "#98FB98",
+          "sponsor": "公司行政部"
+        }
+      ]
+    }
+  ]
+}

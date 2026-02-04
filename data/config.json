@@ -1,0 +1,30 @@
+{
+  "allowRepeatWin": true,
+  "numbersPerRow": 10,
+  "numberPoolConfig": {
+    "type": "auto",
+    "start": 1,
+    "end": 155,
+    "excludeContains": [
+      "4"
+    ],
+    "excludeExact": [
+      "13"
+    ]
+  },
+  "fontSizes": {
+    "prizeLevel": 56,
+    "prizeName": 55,
+    "sponsor": 53,
+    "numberCard": 43
+  },
+  "displaySettings": {
+    "showQuantity": false,
+    "showSponsor": true
+  },
+  "fontColors": {
+    "prizeName": "#ffffff",
+    "sponsor": "#ffffff",
+    "numberCard": "#ffffff"
+  }
+}

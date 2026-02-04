@@ -1,0 +1,666 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.4);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.6);
+}
+
+.app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+
+.bg {
+  position: fixed;
+  inset: 0;
+  background: url('/bg.jpg') center/cover no-repeat;
+  z-index: -1;
+}
+
+/* 主显示区 */
+.main-display {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 30px;
+}
+
+.main-display h1 {
+  font-size: 56px;
+  color: #ffd700;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.prize-info {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prize-level-title {
+  font-weight: 900;
+  text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 4px 10px rgba(0, 0, 0, 0.5);
+  margin: 0;
+}
+
+.prize-name {
+  font-weight: bold;
+  color: #fff;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+.prize-quantity {
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.prize-sponsor {
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 5px;
+}
+
+.number-display {
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.numbers-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+  max-width: 1100px;
+}
+
+.number-card {
+  width: 105px;
+  height: 68px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.15));
+  border: 3px solid rgba(255, 215, 0, 0.6);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: #ffd700;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.number-card.winner {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.4), rgba(255, 140, 0, 0.3));
+  box-shadow: 0 0 35px rgba(255, 215, 0, 0.6);
+}
+
+/* 控制面板切换按钮 */
+.toggle-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  border-radius: 10px;
+  color: #ffd700;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+.toggle-panel:hover {
+  background: rgba(255, 215, 0, 0.2);
+}
+
+/* 控制面板 */
+.control-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: rgba(10, 10, 30, 0.95);
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 999;
+  border-left: 2px solid rgba(255, 215, 0, 0.3);
+}
+
+.control-panel h2 {
+  color: #ffd700;
+  font-size: 22px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+.section h3 {
+  color: #ffd700;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btns button {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btns button:hover {
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.btns button.active {
+  background: #ffd700;
+  color: #000;
+  font-weight: bold;
+}
+
+.btns button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btns button.action {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+}
+
+.btns button.start {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #000;
+}
+
+.btns button.stop {
+  background: linear-gradient(135deg, #ff4500, #ff0000);
+  color: #fff;
+}
+
+.prize-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.prize-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #fff;
+}
+
+.prize-item:hover:not(.empty) {
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.prize-item.active {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: #ffd700;
+}
+
+.prize-item.empty {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.prize-item .pname {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 8px;
+}
+
+.section p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.winners {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.winners h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.export-btn {
+  padding: 4px 12px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border: none;
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+.export-btn:hover {
+  background: linear-gradient(135deg, #5CBF60, #55b059);
+}
+
+.round-winners {
+  margin-bottom: 12px;
+}
+
+.round-title {
+  font-size: 14px;
+  color: #ff8c00;
+  font-weight: bold;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(255, 140, 0, 0.3);
+  margin-bottom: 8px;
+}
+
+.winner-group {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.wg-header {
+  font-size: 13px;
+  color: #ffd700;
+  margin-bottom: 5px;
+}
+
+.wg-nums {
+  font-size: 14px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+
+/* 管理页面样式 */
+.admin-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 30px;
+  color: #fff;
+}
+
+.admin-title {
+  font-size: 32px;
+  color: #ffd700;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+.tab-btn:hover {
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.tab-btn.active {
+  background: #ffd700;
+  color: #000;
+  font-weight: bold;
+}
+
+.admin-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.manager-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.manager-panel h2 {
+  color: #ffd700;
+  font-size: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.manager-panel h3 {
+  color: #ffd700;
+  font-size: 18px;
+  margin: 20px 0 10px;
+}
+
+.add-form,
+.prize-form,
+.gen-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.manager-panel input,
+.manager-panel select,
+.manager-panel textarea {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.manager-panel input:focus,
+.manager-panel select:focus,
+.manager-panel textarea:focus {
+  outline: none;
+  border-color: #ffd700;
+}
+
+.manager-panel select option {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.manager-panel input[type="color"] {
+  width: 50px;
+  padding: 2px;
+}
+
+.manager-panel button {
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  border: none;
+  color: #000;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.manager-panel button:hover {
+  opacity: 0.9;
+}
+
+.item-list {
+  list-style: none;
+}
+
+.item-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.item-list li span {
+  flex: 1;
+}
+
+.round-select {
+  margin-bottom: 20px;
+}
+
+.round-select label {
+  margin-right: 10px;
+}
+
+.pool-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.pool-section textarea {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.pool-preview {
+  margin-top: 20px;
+}
+
+.pool-numbers {
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+}
+
+.pool-numbers.expanded {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.pool-numbers.expanded::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pool-numbers.expanded::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.pool-numbers.expanded::-webkit-scrollbar-thumb {
+  background: rgba(255, 215, 0, 0.5);
+  border-radius: 4px;
+}
+
+.pool-numbers.expanded::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 215, 0, 0.7);
+}
+
+.config-item {
+  margin-bottom: 20px;
+}
+
+.config-item label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.config-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.config-info {
+  margin-top: 30px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.config-info p {
+  margin: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 控制页面样式 */
+.control-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 30px;
+  color: #fff;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.control-title {
+  font-size: 28px;
+  color: #ffd700;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.control-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.control-section h3 {
+  color: #ffd700;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.control-section p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.control-section .btns {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.control-section .btns button {
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.control-section .btns button:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.2);
+}
+
+.control-section .btns button.active {
+  background: #ffd700;
+  color: #000;
+  font-weight: bold;
+}
+
+.control-section .btns button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.control-section .btns button.action {
+  flex: 1;
+  padding: 15px;
+  font-size: 18px;
+}
+
+.control-section .btns button.start {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #000;
+}
+
+.control-section .btns button.start:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffe44d, #ffa500);
+}
+
+.control-section .btns button.stop {
+  background: linear-gradient(135deg, #ff4500, #ff0000);
+  color: #fff;
+}
+
+.control-section .btns button.stop:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff6347, #ff3333);
+}
