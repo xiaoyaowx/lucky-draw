@@ -9,7 +9,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const roundId = parseInt(id);
-    const { name } = await request.json();
+    const { name, poolType } = await request.json();
 
     if (!name) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 });
@@ -23,6 +23,9 @@ export async function PUT(
     }
 
     data.rounds[roundIndex].name = name;
+    if (poolType) {
+      data.rounds[roundIndex].poolType = poolType;
+    }
     savePrizesData(data);
 
     return NextResponse.json({ round: data.rounds[roundIndex] });

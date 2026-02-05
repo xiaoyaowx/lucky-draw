@@ -137,6 +137,21 @@
           "sponsor": "公司行政部"
         }
       ]
+    },
+    {
+      "id": 4,
+      "name": "第四轮抽奖",
+      "poolType": "live",
+      "prizes": [
+        {
+          "id": "4-1",
+          "level": "1",
+          "name": "测试奖口",
+          "quantity": 200,
+          "color": "#FFD700",
+          "sponsor": ""
+        }
+      ]
     }
   ]
 }

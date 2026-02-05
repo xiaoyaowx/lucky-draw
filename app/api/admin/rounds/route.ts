@@ -15,7 +15,7 @@ export async function GET() {
 // 新增轮次
 export async function POST(request: NextRequest) {
   try {
-    const { name } = await request.json();
+    const { name, poolType } = await request.json();
     if (!name) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 });
     }
@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     const newRound: Round = {
       id: newId,
       name,
+      poolType: poolType || 'preset',
       prizes: [],
     };
 

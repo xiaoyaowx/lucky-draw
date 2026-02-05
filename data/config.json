@@ -3,8 +3,8 @@
   "numbersPerRow": 10,
   "numberPoolConfig": {
     "type": "auto",
-    "start": 1,
-    "end": 155,
+    "start": 1000,
+    "end": 1550,
     "excludeContains": [
       "4"
     ],
@@ -26,5 +26,9 @@
     "prizeName": "#ffffff",
     "sponsor": "#ffffff",
     "numberCard": "#ffffff"
+  },
+  "registerSettings": {
+    "length": 4,
+    "allowLetters": false
   }
 }

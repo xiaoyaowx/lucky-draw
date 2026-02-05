@@ -5,6 +5,7 @@ import {
   saveLotteryState,
   getConfig,
 } from '@/lib/lottery';
+import { getLivePool, removeFromLivePool } from '@/lib/live-pool';
 
 interface DrawRequest {
   prizeId: string;
@@ -35,9 +36,14 @@ export async function POST(request: NextRequest) {
 
     // 找到奖品信息
     let prize = null;
+    let targetRound = null;
     for (const round of prizesData.rounds) {
-      prize = round.prizes.find(p => p.id === prizeId);
-      if (prize) break;
+      const found = round.prizes.find(p => p.id === prizeId);
+      if (found) {
+        prize = found;
+        targetRound = round;
+        break;
+      }
     }
 
     if (!prize) {
@@ -47,10 +53,20 @@ export async function POST(request: NextRequest) {
     // 计算实际抽取数量
     const remaining = state.prizeRemaining[prizeId] || 0;
 
-    // 构建可用号码池（根据配置排除已中奖号码）
-    let availablePool = [...state.numberPool];
-    if (!config.allowRepeatWin && state.allWinners && state.allWinners.length > 0) {
-      availablePool = availablePool.filter(n => !state.allWinners!.includes(n));
+    // 根据 poolType 选择号码池
+    let availablePool: string[];
+    if (targetRound?.poolType === 'live') {
+      const livePool = getLivePool();
+      availablePool = [...livePool.registrations];
+      // 排除已中奖号码
+      if (!config.allowRepeatWin && state.allWinners && state.allWinners.length > 0) {
+        availablePool = availablePool.filter(n => !state.allWinners!.includes(n));
+      }
+    } else {
+      availablePool = [...state.numberPool];
+      if (!config.allowRepeatWin && state.allWinners && state.allWinners.length > 0) {
+        availablePool = availablePool.filter(n => !state.allWinners!.includes(n));
+      }
     }
 
     const actualCount = Math.min(count, remaining, availablePool.length);
@@ -70,7 +86,11 @@ export async function POST(request: NextRequest) {
     }
 
     // 从原始号码池中移除中奖号码
-    state.numberPool = state.numberPool.filter(n => !winningNumbers.includes(n));
+    if (targetRound?.poolType === 'live') {
+      removeFromLivePool(winningNumbers);
+    } else {
+      state.numberPool = state.numberPool.filter(n => !winningNumbers.includes(n));
+    }
 
     // 更新中奖记录
     if (!state.winnersByPrize[prizeId]) {
