@@ -2,7 +2,7 @@
 // 通过 HTTP 调用内部广播端点
 
 export interface WSMessage {
-  type: 'state_update' | 'rolling_start' | 'rolling_stop' | 'reset';
+  type: 'state_update' | 'rolling_start' | 'rolling_stop' | 'reset' | 'show_qrcode';
   payload?: unknown;
 }
 
@@ -37,4 +37,8 @@ export function broadcastRollingStop(winners: string[]): void {
 
 export function broadcastReset(): void {
   broadcast({ type: 'reset' });
+}
+
+export function broadcastShowQRCode(show: boolean, url: string, message: string): void {
+  broadcast({ type: 'show_qrcode', payload: { show, url, message } });
 }

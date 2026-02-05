@@ -93,6 +93,10 @@ export interface ConfigUpdateRequest {
     excludeContains: string[];
     excludeExact: string[];
   };
+  registerSettings?: {
+    length: number;
+    allowLetters: boolean;
+  };
 }
 
 export interface PrizeCreateRequest {

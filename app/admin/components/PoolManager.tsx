@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import LivePoolManager from './LivePoolManager';
 
-export default function PoolManager() {
+type PoolTab = 'preset' | 'live';
+
+function PresetPoolPanel() {
   const [pool, setPool] = useState<string[]>([]);
   const [manualInput, setManualInput] = useState('');
   const [csvInput, setCsvInput] = useState('');
@@ -148,6 +151,33 @@ export default function PoolManager() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+export default function PoolManager() {
+  const [activeTab, setActiveTab] = useState<PoolTab>('preset');
+
+  const tabs = [
+    { id: 'preset', label: '预设池' },
+    { id: 'live', label: '签到登记' },
+  ];
+
+  return (
+    <div>
+      <div className="admin-tabs" style={{ justifyContent: 'flex-start', marginBottom: '20px' }}>
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id as PoolTab)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'preset' ? <PresetPoolPanel /> : <LivePoolManager />}
     </div>
   );
 }

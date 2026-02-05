@@ -6,6 +6,8 @@ export interface DisplayState {
   drawCount: number;
   isRolling: boolean;
   winners: string[];
+  showQRCode?: boolean;
+  qrCodeMessage?: string;
 }
 
 const defaultState: DisplayState = {
@@ -14,6 +16,8 @@ const defaultState: DisplayState = {
   drawCount: 1,
   isRolling: false,
   winners: [],
+  showQRCode: false,
+  qrCodeMessage: '',
 };
 
 // 使用全局变量存储状态（在服务器进程中持久化）

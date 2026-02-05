@@ -62,7 +62,7 @@ interface DisplayState {
 
 
 interface WSMessage {
-  type: 'state_update' | 'rolling_start' | 'rolling_stop' | 'reset';
+  type: 'state_update' | 'rolling_start' | 'rolling_stop' | 'reset' | 'show_qrcode';
   payload?: unknown;
 }
 
@@ -70,6 +70,9 @@ export default function DisplayPage() {
   const [state, setState] = useState<DisplayState | null>(null);
   const [displayNumbers, setDisplayNumbers] = useState<string[]>([]);
   const [isRolling, setIsRolling] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeUrl, setQRCodeUrl] = useState('');
+  const [qrCodeMessage, setQRCodeMessage] = useState('');
   const rollInterval = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const poolRef = useRef<string[]>([]);
@@ -150,6 +153,14 @@ export default function DisplayPage() {
         setIsRolling(false);
         clearRollInterval();
         break;
+
+      case 'show_qrcode': {
+        const qrPayload = message.payload as { show: boolean; url: string; message?: string };
+        setShowQRCode(qrPayload.show);
+        setQRCodeUrl(qrPayload.url);
+        setQRCodeMessage(qrPayload.message || '');
+        break;
+      }
     }
   }, [clearRollInterval, startLocalRolling, stopLocalRolling]);
 
@@ -163,6 +174,11 @@ export default function DisplayPage() {
       .then(data => {
         setState(data);
         poolRef.current = data.numberPool || [];
+        if (data.showQRCode) {
+          setShowQRCode(true);
+          setQRCodeUrl(`${window.location.origin}/register`);
+          setQRCodeMessage(data.qrCodeMessage || '');
+        }
       })
       .catch(err => console.error('Failed to load state:', err));
   }, []);
@@ -242,6 +258,45 @@ export default function DisplayPage() {
   return (
     <div className="app">
       <div className="bg"></div>
+      {showQRCode ? (
+        <div className="main-display">
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 30,
+          }}>
+            <h1 style={{
+              fontSize: 56,
+              color: '#ffd700',
+              textShadow: '0 0 20px rgba(255, 215, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.5)',
+            }}>
+              扫码签到
+            </h1>
+            <div style={{
+              background: '#fff',
+              padding: 20,
+              borderRadius: 16,
+              boxShadow: '0 0 40px rgba(255, 215, 0, 0.4)',
+            }}>
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(qrCodeUrl || `${typeof window !== 'undefined' ? window.location.origin : ''}/register`)}`}
+                alt="签到二维码"
+                width={280}
+                height={280}
+                style={{ display: 'block' }}
+              />
+            </div>
+            <p style={{
+              fontSize: 28,
+              color: 'rgba(255, 255, 255, 0.8)',
+              textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
+            }}>
+              {qrCodeMessage || '请扫描二维码，输入工号完成签到'}
+            </p>
+          </div>
+        </div>
+      ) : (
       <div className="main-display">
         {currentPrize ? (
           <div className="prize-info">
@@ -338,6 +393,7 @@ export default function DisplayPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

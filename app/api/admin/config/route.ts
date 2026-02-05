@@ -63,6 +63,24 @@ export async function PUT(request: NextRequest) {
       };
     }
 
+    // 更新登记设置
+    if (updates.registerSettings) {
+      const nextSettings = { ...(config.registerSettings || {}) };
+
+      if (updates.registerSettings.length !== undefined) {
+        const length = Number(updates.registerSettings.length);
+        if (!Number.isNaN(length)) {
+          nextSettings.length = Math.min(Math.max(length, 1), 20);
+        }
+      }
+
+      if (updates.registerSettings.allowLetters !== undefined) {
+        nextSettings.allowLetters = !!updates.registerSettings.allowLetters;
+      }
+
+      config.registerSettings = nextSettings;
+    }
+
     saveConfig(config);
     return NextResponse.json({ config });
   } catch (error) {

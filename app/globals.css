@@ -610,6 +610,71 @@ body {
   font-size: 14px;
 }
 
+.control-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+}
+
+.control-input-group {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.control-input-group .control-input {
+  flex: 1;
+}
+
+.control-icon-btn {
+  width: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 8px;
+  color: #ffd700;
+  cursor: pointer;
+  transition: background 0.3s, border-color 0.3s, transform 0.2s;
+}
+
+.control-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.control-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 215, 0, 0.25);
+  border-color: rgba(255, 215, 0, 0.6);
+}
+
+.control-icon-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.control-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.control-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.control-input:focus {
+  outline: none;
+  border-color: #ffd700;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.25);
+}
+
 .control-section .btns {
   display: flex;
   gap: 10px;

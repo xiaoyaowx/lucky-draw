@@ -68,6 +68,7 @@ export interface Prize {
 export interface Round {
   id: number;
   name: string;
+  poolType?: 'preset' | 'live';
   prizes: Prize[];
 }
 
@@ -115,6 +116,11 @@ export interface FontColorConfig {
   numberCard: string;    // 抽奖号码颜色 (同时应用于边框)
 }
 
+export interface RegisterSettings {
+  length: number;        // 工号长度
+  allowLetters: boolean; // 是否允许字母
+}
+
 export interface Config {
   allowRepeatWin: boolean;
   numbersPerRow: number;
@@ -122,6 +128,7 @@ export interface Config {
   fontSizes?: FontSizeConfig;
   displaySettings?: DisplaySettings;
   fontColors?: FontColorConfig;
+  registerSettings?: RegisterSettings;
 }
 
 // 生成号码池（根据配置文件生成）
@@ -183,6 +190,10 @@ const DEFAULT_CONFIG: Config = {
     sponsor: '#eeeeee',
     numberCard: '#ffd700',
   },
+  registerSettings: {
+    length: 6,
+    allowLetters: false,
+  },
 };
 
 // 读取奖品配置
@@ -202,7 +213,12 @@ export function saveLotteryState(state: LotteryState): void {
 
 // 读取配置
 export function getConfig(): Config {
-  return safeReadJSON<Config>(getConfigFile(), DEFAULT_CONFIG);
+  const config = safeReadJSON<Config>(getConfigFile(), DEFAULT_CONFIG);
+  const registerSettings = {
+    ...DEFAULT_CONFIG.registerSettings,
+    ...(config.registerSettings || {}),
+  };
+  return { ...config, registerSettings };
 }
 
 // 保存配置

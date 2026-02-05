@@ -42,6 +42,8 @@ export default function ControlPage() {
   const [currentPrizeId, setCurrentPrizeId] = useState<string | null>(null);
   const [drawCount, setDrawCount] = useState(1);
   const [isRolling, setIsRolling] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeMessage, setQRCodeMessage] = useState('请扫描二维码，输入工号完成签到');
 
   const currentRound = state?.rounds.find(r => r.id === currentRoundId);
   const currentPrize = currentPrizeId && currentRound
@@ -50,7 +52,21 @@ export default function ControlPage() {
 
   useEffect(() => {
     fetchState();
+    fetchQRCodeState();
   }, []);
+
+  const fetchQRCodeState = async () => {
+    try {
+      const res = await fetch('/api/control/qrcode');
+      const data = await res.json();
+      setShowQRCode(data.showQRCode || false);
+      if (typeof data.qrCodeMessage === 'string') {
+        setQRCodeMessage(data.qrCodeMessage || '请扫描二维码，输入工号完成签到');
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const fetchState = async () => {
     const res = await fetch('/api/control/state');
@@ -134,6 +150,40 @@ export default function ControlPage() {
       body: JSON.stringify({ prizeId: currentPrizeId }),
     });
     fetchState();
+  };
+
+  const handleToggleQRCode = async () => {
+    try {
+      const res = await fetch('/api/control/qrcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show: !showQRCode, message: qrCodeMessage }),
+      });
+      const data = await res.json();
+      setShowQRCode(data.showQRCode);
+      if (typeof data.qrCodeMessage === 'string') {
+        setQRCodeMessage(data.qrCodeMessage || qrCodeMessage);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleUpdateQRCodeMessage = async () => {
+    try {
+      const res = await fetch('/api/control/qrcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show: showQRCode, message: qrCodeMessage }),
+      });
+      const data = await res.json();
+      setShowQRCode(data.showQRCode);
+      if (typeof data.qrCodeMessage === 'string') {
+        setQRCodeMessage(data.qrCodeMessage || qrCodeMessage);
+      }
+    } catch {
+      // ignore
+    }
   };
 
   const totalWinners = state
@@ -260,6 +310,54 @@ export default function ControlPage() {
           </div>
         </div>
       )}
+
+      <div className="control-section">
+        <h3>签到登记</h3>
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>
+            二维码提示文字
+          </label>
+          <div className="control-input-group">
+            <input
+              type="text"
+              value={qrCodeMessage}
+              onChange={(e) => setQRCodeMessage(e.target.value)}
+              placeholder="请输入提示文字"
+              className="control-input"
+            />
+            <button
+              type="button"
+              className="control-icon-btn"
+              onClick={handleUpdateQRCodeMessage}
+              disabled={isRolling}
+              aria-label="保存提示文字"
+              title="保存提示文字"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M5 4h11l3 3v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm2 0v6h8V4H7zm0 10h10v5H7v-5zm2-8h4v3H9V6z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="btns">
+          <button
+            className={showQRCode ? 'stop' : 'start'}
+            onClick={handleToggleQRCode}
+            disabled={isRolling}
+            style={{ flex: 1 }}
+          >
+            {showQRCode ? '关闭签到二维码' : '显示签到二维码'}
+          </button>
+        </div>
+        {showQRCode && (
+          <p style={{ marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+            大屏正在显示签到二维码，用户可扫码登记工号
+          </p>
+        )}
+      </div>
 
       <div className="control-section">
         <h3>操作</h3>
