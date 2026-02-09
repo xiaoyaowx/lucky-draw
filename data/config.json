@@ -3,8 +3,8 @@
   "numbersPerRow": 10,
   "numberPoolConfig": {
     "type": "auto",
-    "start": 1000,
-    "end": 1550,
+    "start": 2000,
+    "end": 2550,
     "excludeContains": [
       "4"
     ],
@@ -21,7 +21,8 @@
   "displaySettings": {
     "showQuantity": false,
     "showSponsor": true,
-    "showNumberBorder": false
+    "showNumberBorder": true,
+    "maskPhone": false
   },
   "fontColors": {
     "prizeName": "#ffffff",
