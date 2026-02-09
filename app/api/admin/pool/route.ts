@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLotteryState, saveLotteryState } from '@/lib/lottery';
+import { getLotteryState, saveLotteryState, getPrizesData, getInitialPrizeRemaining } from '@/lib/lottery';
 
 // 获取号码池
 export async function GET() {
@@ -24,8 +24,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid numbers format' }, { status: 400 });
     }
 
-    const state = getLotteryState();
-    state.numberPool = numbers.map(n => n.toString().padStart(3, '0'));
+    const numberPool = numbers.map((n: unknown) => String(n).trim()).filter(Boolean);
+
+    // 替换号码池并清除旧的抽奖记录
+    const prizesData = getPrizesData();
+    const state = {
+      numberPool,
+      prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
+      winnersByPrize: {},
+      allWinners: [] as string[],
+    };
     saveLotteryState(state);
 
     return NextResponse.json({

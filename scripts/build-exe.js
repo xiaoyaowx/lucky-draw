@@ -109,7 +109,8 @@ function buildProject() {
 function compileServer() {
   console.log('[4/6] 编译服务器文件...');
   // 使用 esbuild 编译生产服务器，ws 设置为 external
-  execSync('npx esbuild server.prod.js --bundle --platform=node --target=node18 --outfile=dist/lottery/runtime/server.js --external:next --external:react --external:react-dom --external:ws', {
+  const outfile = path.join(RUNTIME_DIR, 'server.js').replace(/\\/g, '/');
+  execSync(`npx esbuild server.prod.js --bundle --platform=node --target=node18 --outfile=${outfile} --external:next --external:react --external:react-dom --external:ws`, {
     cwd: ROOT_DIR,
     stdio: 'inherit'
   });
@@ -141,16 +142,18 @@ function copyFiles() {
   // 复制静态文件（standalone 不包含这些）
   copyDir(path.join(ROOT_DIR, '.next', 'static'), path.join(RUNTIME_DIR, '.next', 'static'));
 
-  // 删除 runtime 下不需要的目录（使用外层的 data 和 public）
-  const runtimePublic = path.join(RUNTIME_DIR, 'public');
+  // 删除 runtime 下不需要的 data 目录（使用外层的 data）
   const runtimeData = path.join(RUNTIME_DIR, 'data');
-  if (fs.existsSync(runtimePublic)) {
-    fs.rmSync(runtimePublic, { recursive: true });
-    console.log('    已删除 runtime/public（使用外层目录）');
-  }
   if (fs.existsSync(runtimeData)) {
     fs.rmSync(runtimeData, { recursive: true });
     console.log('    已删除 runtime/data（使用外层目录）');
+  }
+
+  // 删除 runtime 下的 public 目录（使用外层的 public）
+  const runtimePublic = path.join(RUNTIME_DIR, 'public');
+  if (fs.existsSync(runtimePublic)) {
+    fs.rmSync(runtimePublic, { recursive: true });
+    console.log('    已删除 runtime/public（使用外层目录）');
   }
 
   // 复制 ws 模块（WebSocket 支持）

@@ -134,14 +134,11 @@ export async function POST(request: NextRequest) {
       saveConfig(config);
     }
 
-    // 从号码池中移除中奖号码
+    // 从实时注册池中移除中奖号码（实时池需要物理移除，因为没有 allWinners 过滤）
     if (isLivePool) {
       removeFromLivePool(winningNumbers);
-    } else if (!config.allowRepeatWin) {
-      lotteryState.numberPool = lotteryState.numberPool.filter(
-        n => !winningNumbers.includes(n)
-      );
     }
+    // preset 池不修改 numberPool，依赖 allWinners 排除已中奖者
 
     // 更新中奖记录
     if (!lotteryState.winnersByPrize[prizeId]) {

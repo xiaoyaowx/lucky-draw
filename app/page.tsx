@@ -63,6 +63,27 @@ interface DisplayState {
 
 
 
+// 计算文本视觉宽度（区分全角/半角字符）
+function getTextVisualWidth(text: string, fontSize: number): number {
+  let width = 0;
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    // CJK统一汉字、全角标点等全角字符约占 1.0 倍字号宽度
+    if (code > 0x2E7F || (code >= 0xFF00 && code <= 0xFFEF)) {
+      width += fontSize;
+    } else {
+      width += fontSize * 0.6;
+    }
+  }
+  return width;
+}
+
+// 计算池中最大文本视觉宽度
+function getPoolMaxWidth(pool: string[], fontSize: number): number {
+  if (pool.length === 0) return 0;
+  return Math.max(...pool.map(t => getTextVisualWidth(t, fontSize)));
+}
+
 interface WSMessage {
   type: 'state_update' | 'rolling_start' | 'rolling_stop' | 'reset' | 'show_qrcode';
   payload?: unknown;
@@ -78,6 +99,7 @@ export default function DisplayPage() {
   const rollInterval = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const poolRef = useRef<string[]>([]);
+  const poolMaxWidthRef = useRef<number>(0);
   const lastPrizeIdRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
@@ -123,6 +145,8 @@ export default function DisplayPage() {
         const newState = message.payload as DisplayState;
         setState(newState);
         poolRef.current = newState.numberPool || [];
+        const fontSize = newState.fontSizes?.numberCard || 38;
+        poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize);
 
         // 检测奖品切换，清空显示
         if (newState.currentPrizeId !== lastPrizeIdRef.current) {
@@ -176,7 +200,8 @@ export default function DisplayPage() {
       .then(data => {
         setState(data);
         poolRef.current = data.numberPool || [];
-        if (data.showQRCode) {
+        const fontSize = data.fontSizes?.numberCard || 38;
+        poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize);        if (data.showQRCode) {
           setShowQRCode(true);
           setQRCodeUrl(`${window.location.origin}/register`);
           setQRCodeMessage(data.qrCodeMessage || '');
@@ -361,12 +386,16 @@ export default function DisplayPage() {
             const maskPhone = state?.displaySettings?.maskPhone ?? false;
             const maskNum = (n: string) =>
               maskPhone && n.length === 11 ? n.slice(0, 3) + '****' + n.slice(7) : n;
-            // 用脱敏后的文本计算卡片宽度
             const displayTexts = displayNumbers.map(maskNum);
-            const maxLen = Math.max(...displayTexts.map(t => t.length), 1);
-            const charWidth = numFontSize * 0.65;
+
+            // 使用整个池的最大宽度来稳定卡片尺寸，避免滚动时布局抖动
             const cardPadding = numFontSize * 0.8;
-            const cardWidth = Math.max(numFontSize * 2.8, maxLen * charWidth + cardPadding);
+            const poolBasedWidth = poolMaxWidthRef.current + cardPadding;
+            // 同时也考虑当前显示文本（停止后中奖者可能不在池中了）
+            const currentMaxWidth = Math.max(
+              ...displayTexts.map(t => getTextVisualWidth(t, numFontSize)), 0
+            ) + cardPadding;
+            const cardWidth = Math.max(numFontSize * 2.8, poolBasedWidth, currentMaxWidth);
             const cardHeight = numFontSize * 1.8;
             const gap = 15;
             const maxWidth = (state?.numbersPerRow || 10) * (cardWidth + gap);
@@ -379,24 +408,33 @@ export default function DisplayPage() {
                   gap: `${gap}px`
                 }}
               >
-                {displayNumbers.map((num, i) => (
-                  <div
-                    key={i}
-                    className={`number-card ${!isRolling ? 'winner' : ''}`}
-                    style={{
-                      fontSize: `${numFontSize}px`,
-                      width: `${cardWidth}px`,
-                      height: `${cardHeight}px`,
-                      borderWidth: showBorder ? `${borderWidth}px` : 0,
-                      color: fontColors.numberCard,
-                      borderColor: showBorder ? fontColors.numberCard : 'transparent',
-                      background: showBorder ? undefined : 'transparent',
-                      boxShadow: showBorder ? undefined : 'none',
-                    }}
-                  >
-                    {displayTexts[i]}
-                  </div>
-                ))}
+                {displayNumbers.map((num, i) => {
+                  const text = displayTexts[i];
+                  // 文字过长时自动缩小字号以适配卡片
+                  const textWidth = getTextVisualWidth(text, numFontSize);
+                  const availableWidth = cardWidth - cardPadding;
+                  const scaledFontSize = textWidth > availableWidth
+                    ? numFontSize * (availableWidth / textWidth)
+                    : numFontSize;
+                  return (
+                    <div
+                      key={i}
+                      className={`number-card ${!isRolling ? 'winner' : ''}`}
+                      style={{
+                        fontSize: `${scaledFontSize}px`,
+                        width: `${cardWidth}px`,
+                        height: `${cardHeight}px`,
+                        borderWidth: showBorder ? `${borderWidth}px` : 0,
+                        color: fontColors.numberCard,
+                        borderColor: showBorder ? fontColors.numberCard : 'transparent',
+                        background: showBorder ? undefined : 'transparent',
+                        boxShadow: showBorder ? undefined : 'none',
+                      }}
+                    >
+                      {text}
+                    </div>
+                  );
+                })}
               </div>
             );
           })() : (

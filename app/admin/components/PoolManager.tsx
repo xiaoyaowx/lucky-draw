@@ -45,6 +45,7 @@ function PresetPoolPanel() {
   const handleManualSet = async () => {
     const numbers = manualInput.split(/[,\n\r\s]+/).filter(n => n);
     if (numbers.length === 0) return;
+    if (pool.length > 0 && !confirm('当前号码池将被覆盖，已有的抽奖记录也会清除，确定继续吗？')) return;
     await fetch('/api/admin/pool', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -65,6 +66,7 @@ function PresetPoolPanel() {
   };
 
   const handleGenerate = async () => {
+    if (pool.length > 0 && !confirm('当前号码池将被覆盖，已有的抽奖记录也会清除，确定继续吗？')) return;
     await fetch('/api/admin/pool/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

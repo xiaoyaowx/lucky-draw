@@ -3,7 +3,6 @@ import {
   getPrizesData,
   getLotteryState,
   saveLotteryState,
-  generateNumberPool,
   getInitialPrizeRemaining,
 } from '@/lib/lottery';
 
@@ -32,8 +31,7 @@ export async function POST(request: NextRequest) {
       // 获取该奖品已中奖的号码
       const prizeWinners = currentState.winnersByPrize[prizeId]?.numbers || [];
 
-      // 将中奖号码放回号码池
-      currentState.numberPool = [...currentState.numberPool, ...prizeWinners].sort();
+      // numberPool 始终保持不变，无需放回
 
       // 从 allWinners 中移除这些号码
       if (currentState.allWinners) {
@@ -55,9 +53,11 @@ export async function POST(request: NextRequest) {
         resetPrizeId: prizeId,
       });
     } else {
-      // 全部重置
+      // 全部重置 — 只清除中奖记录，numberPool 保持不变
+      const currentState = getLotteryState();
+
       const state = {
-        numberPool: generateNumberPool(),
+        numberPool: currentState.numberPool,
         prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
         winnersByPrize: {},
         allWinners: [],

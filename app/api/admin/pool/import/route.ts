@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLotteryState, saveLotteryState } from '@/lib/lottery';
+import { saveLotteryState, getPrizesData, getInitialPrizeRemaining } from '@/lib/lottery';
 
 // 批量导入号码池（CSV格式）
 export async function POST(request: NextRequest) {
@@ -17,8 +17,7 @@ export async function POST(request: NextRequest) {
     const numbers = csv
       .split(/[,\n\r]+/)
       .map(n => n.trim())
-      .filter(n => n && /^\d+$/.test(n))
-      .map(n => n.padStart(3, '0'));
+      .filter(Boolean);
 
     if (numbers.length === 0) {
       return NextResponse.json(
@@ -30,8 +29,14 @@ export async function POST(request: NextRequest) {
     // 去重
     const uniqueNumbers = [...new Set(numbers)];
 
-    const state = getLotteryState();
-    state.numberPool = uniqueNumbers;
+    // 替换号码池并清除旧的抽奖记录
+    const prizesData = getPrizesData();
+    const state = {
+      numberPool: uniqueNumbers,
+      prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
+      winnersByPrize: {},
+      allWinners: [] as string[],
+    };
     saveLotteryState(state);
 
     return NextResponse.json({

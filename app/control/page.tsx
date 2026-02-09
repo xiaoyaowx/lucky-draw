@@ -34,6 +34,7 @@ interface ControlState {
   prizeRemaining: Record<string, number>;
   winnersByPrize: Record<string, WinnerInfo>;
   numberPool: string[];
+  allowRepeatWin?: boolean;
 }
 
 export default function ControlPage() {
@@ -137,6 +138,15 @@ export default function ControlPage() {
         winnersByPrize: data.winnersByPrize,
         numberPool: data.numberPool || state.numberPool,
       });
+      // 自动调整抽取数量，避免超出剩余
+      if (currentPrizeId) {
+        const newRemaining = data.prizeRemaining[currentPrizeId] || 0;
+        if (drawCount > newRemaining) {
+          const adjusted = Math.min(newRemaining, 30);
+          setDrawCount(adjusted);
+          updateState({ drawCount: adjusted });
+        }
+      }
     }
   };
 
@@ -300,7 +310,7 @@ export default function ControlPage() {
           <div className="btns">
             {(() => {
               const remaining = state.prizeRemaining[currentPrize.id] || 0;
-              const baseOptions = [1, 5, 10, 20, 30];
+              const baseOptions = [1, 5, 10, 15, 20, 30];
               // 如果剩余数量大于0且不在基础选项中，添加它
               const options = (remaining > 0 && !baseOptions.includes(remaining))
                 ? [...baseOptions, remaining].sort((a, b) => a - b)
@@ -390,7 +400,7 @@ export default function ControlPage() {
 
       <div className="control-section">
         <h3>状态</h3>
-        <p>剩余号码: {state.numberPool.length}</p>
+        <p>剩余号码: {state.allowRepeatWin ? state.numberPool.length : `${state.numberPool.length - totalWinners} / ${state.numberPool.length}`}</p>
       </div>
 
       <div className="control-section winners">

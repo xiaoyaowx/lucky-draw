@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  getLotteryState,
   saveLotteryState,
   generateNumberPoolFromConfig,
   getConfig,
   saveConfig,
+  getPrizesData,
+  getInitialPrizeRemaining,
 } from '@/lib/lottery';
 
 // 自动生成号码池
@@ -38,8 +39,14 @@ export async function POST(request: NextRequest) {
     // 生成号码池
     const numberPool = generateNumberPoolFromConfig(config.numberPoolConfig);
 
-    const state = getLotteryState();
-    state.numberPool = numberPool;
+    // 替换号码池并清除旧的抽奖记录
+    const prizesData = getPrizesData();
+    const state = {
+      numberPool,
+      prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
+      winnersByPrize: {},
+      allWinners: [] as string[],
+    };
     saveLotteryState(state);
 
     return NextResponse.json({

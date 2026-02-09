@@ -13,12 +13,22 @@ const { WebSocketServer } = ws;
 // 环境配置
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOSTNAME = process.env.HOSTNAME || '0.0.0.0';
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-const PUBLIC_DIR = process.env.PUBLIC_DIR || path.join(process.cwd(), 'public');
+
+// 解析目录：环境变量 > 上层目录（打包模式） > 当前目录
+// 打包模式下 cwd 为 runtime/，数据和资源在上层 lucky-draw/ 目录
+function resolveDir(envKey, dirName) {
+  if (process.env[envKey]) return process.env[envKey];
+  const parentDir = path.resolve(process.cwd(), '..', dirName);
+  if (fs.existsSync(parentDir)) return parentDir;
+  return path.join(process.cwd(), dirName);
+}
+
+const DATA_DIR = resolveDir('DATA_DIR', 'data');
+const PUBLIC_DIR = resolveDir('PUBLIC_DIR', 'public');
 // standalone 模式下的静态文件目录
 const STATIC_DIR = path.join(process.cwd(), '.next', 'static');
 
-// 设置环境变量
+// 设置环境变量，供 API 路由中的 lib/lottery.ts 使用
 process.env.DATA_DIR = DATA_DIR;
 
 console.log('启动配置:');
@@ -148,7 +158,7 @@ const server = createServer(async (req, res) => {
       }
     }
 
-    // 处理外部 public 目录的静态文件（非 _next 和 api 路径）
+    // 处理 public 目录的静态文件（非 _next 和 api 路径）
     if (pathname !== '/' && !pathname.startsWith('/_next') && !pathname.startsWith('/api')) {
       const filePath = path.join(PUBLIC_DIR, pathname);
       try {
@@ -159,7 +169,7 @@ const server = createServer(async (req, res) => {
           return;
         }
       } catch (e) {
-        // 文件不存在，继续交给 Next.js 处理
+        // 文件不存在，交给 Next.js 处理
       }
     }
 

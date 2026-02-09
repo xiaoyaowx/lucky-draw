@@ -1,5 +1,5 @@
 {
-  "allowRepeatWin": true,
+  "allowRepeatWin": false,
   "numbersPerRow": 10,
   "numberPoolConfig": {
     "type": "auto",

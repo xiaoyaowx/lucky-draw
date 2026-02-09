@@ -315,15 +315,6 @@ export default function ConfigPanel() {
         <p className="config-hint">设置展示页面的字体大小（10-200px），修改后自动保存</p>
       </div>
 
-      {/* 号码池信息 */}
-      <div className="config-info">
-        <div className="admin-card-header">当前号码池配置</div>
-        <p>类型：{config.numberPoolConfig.type}</p>
-        <p>范围：{config.numberPoolConfig.start} - {config.numberPoolConfig.end}</p>
-        <p>包含排除：{(config.numberPoolConfig.excludeContains || config.numberPoolConfig.excludePatterns || []).join(', ') || '无'}</p>
-        <p>精确排除：{(config.numberPoolConfig.excludeExact || []).join(', ') || '无'}</p>
-      </div>
-
       {/* 抽样校准 */}
       <div className="admin-card" style={{ marginTop: 16 }}>
         <div className="admin-card-header">抽样校准</div>

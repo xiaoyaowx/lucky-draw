@@ -17,6 +17,7 @@ export async function GET() {
       prizeRemaining: lotteryState.prizeRemaining,
       winnersByPrize: lotteryState.winnersByPrize,
       numberPool: lotteryState.numberPool,
+      allowRepeatWin: config.allowRepeatWin ?? false,
       numbersPerRow: config.numbersPerRow || 10,
       fontSizes: config.fontSizes || { prizeLevel: 56, prizeName: 42, sponsor: 28, numberCard: 38 },
       displaySettings: config.displaySettings || { showQuantity: true, showSponsor: true },

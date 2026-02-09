@@ -124,10 +124,13 @@ body {
   justify-content: center;
   font-weight: 900;
   color: #ffd700;
-  font-family: 'Courier New', monospace;
+  font-family: 'Courier New', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', monospace;
   text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.4em;
 }
 
 .number-card.winner {
