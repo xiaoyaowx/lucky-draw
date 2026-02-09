@@ -178,7 +178,25 @@ export default function LivePoolManager() {
 
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>已登记工号 ({pool.count} 人)</h3>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            已登记工号 ({pool.count} 人)
+            <button
+              onClick={fetchPool}
+              disabled={loading}
+              title="刷新"
+              style={{
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: 'rgba(255,255,255,0.7)',
+                fontSize: 12,
+                padding: '2px 8px',
+                borderRadius: 4,
+                cursor: 'pointer',
+              }}
+            >
+              &#x21bb;
+            </button>
+          </h3>
           <button
             onClick={handleClear}
             disabled={loading || pool.count === 0}

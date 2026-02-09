@@ -41,11 +41,13 @@ function safeWriteJSON(filePath: string, data: unknown): void {
 export interface LivePool {
   isOpen: boolean;
   registrations: string[];
+  clearedAt: number;
 }
 
 const DEFAULT_LIVE_POOL: LivePool = {
   isOpen: false,
   registrations: [],
+  clearedAt: 0,
 };
 
 export function getLivePool(): LivePool {
@@ -81,6 +83,7 @@ export function registerEmployee(employeeId: string): { success: boolean; messag
 export function clearLivePool(): void {
   const pool = getLivePool();
   pool.registrations = [];
+  pool.clearedAt = Date.now();
   saveLivePool(pool);
 }
 

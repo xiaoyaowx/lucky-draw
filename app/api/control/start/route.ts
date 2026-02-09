@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateDisplayState, getDisplayState } from '@/lib/display-state';
+import { getPrizesData, getLotteryState, getConfig } from '@/lib/lottery';
+import { getLivePool } from '@/lib/live-pool';
 import { broadcastRollingStart } from '@/lib/ws-manager';
 
 interface StartRollingRequest {
@@ -24,6 +26,42 @@ export async function POST(request: NextRequest) {
 
     if (state.isRolling) {
       return NextResponse.json({ error: 'Already rolling' }, { status: 400 });
+    }
+
+    // 检查号码池是否有可用号码
+    const prizesData = getPrizesData();
+    const lotteryState = getLotteryState();
+    const config = getConfig();
+
+    let targetRound = null;
+    for (const round of prizesData.rounds) {
+      if (round.prizes.find(p => p.id === prizeId)) {
+        targetRound = round;
+        break;
+      }
+    }
+
+    const isLivePool = targetRound?.poolType === 'live';
+    let availablePool: string[];
+    if (isLivePool) {
+      const livePool = getLivePool();
+      availablePool = [...livePool.registrations];
+    } else {
+      availablePool = [...lotteryState.numberPool];
+    }
+
+    // 排除已中奖号码
+    const currentPrizeWinners = lotteryState.winnersByPrize[prizeId]?.numbers || [];
+    if (currentPrizeWinners.length > 0) {
+      availablePool = availablePool.filter(n => !currentPrizeWinners.includes(n));
+    }
+    if (!config.allowRepeatWin && lotteryState.allWinners && lotteryState.allWinners.length > 0) {
+      availablePool = availablePool.filter(n => !lotteryState.allWinners!.includes(n));
+    }
+
+    if (availablePool.length === 0) {
+      const poolName = isLivePool ? '签到池' : '号码池';
+      return NextResponse.json({ error: `${poolName}中没有可用号码` }, { status: 400 });
     }
 
     updateDisplayState({

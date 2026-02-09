@@ -129,6 +129,7 @@ export interface Config {
   displaySettings?: DisplaySettings;
   fontColors?: FontColorConfig;
   registerSettings?: RegisterSettings;
+  calibration?: Record<string, string[]>;
 }
 
 // 生成号码池（根据配置文件生成）
@@ -214,9 +215,9 @@ export function saveLotteryState(state: LotteryState): void {
 // 读取配置
 export function getConfig(): Config {
   const config = safeReadJSON<Config>(getConfigFile(), DEFAULT_CONFIG);
-  const registerSettings = {
-    ...DEFAULT_CONFIG.registerSettings,
-    ...(config.registerSettings || {}),
+  const registerSettings: RegisterSettings = {
+    ...DEFAULT_CONFIG.registerSettings!,
+    ...config.registerSettings,
   };
   return { ...config, registerSettings };
 }

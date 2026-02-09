@@ -110,17 +110,26 @@ export default function ControlPage() {
   const handleStart = async () => {
     if (!currentPrizeId) return;
     setIsRolling(true);
-    await fetch('/api/control/start', {
+    const res = await fetch('/api/control/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ count: drawCount, prizeId: currentPrizeId }),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      setIsRolling(false);
+      alert(data.error || '开始抽奖失败');
+    }
   };
 
   const handleStop = async () => {
     const res = await fetch('/api/control/stop', { method: 'POST' });
     const data = await res.json();
     setIsRolling(false);
+    if (!res.ok) {
+      alert(data.error || '停止抽奖失败');
+      return;
+    }
     if (state) {
       setState({
         ...state,
@@ -365,7 +374,7 @@ export default function ControlPage() {
           <button
             className={`action ${isRolling ? 'stop' : 'start'}`}
             onClick={() => isRolling ? handleStop() : handleStart()}
-            disabled={!currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0}
+            disabled={showQRCode || !currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0}
           >
             {isRolling ? '停止抽奖' : '开始抽奖'}
           </button>

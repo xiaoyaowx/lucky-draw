@@ -4,6 +4,7 @@ import {
   getLotteryState,
   saveLotteryState,
   getConfig,
+  saveConfig,
 } from '@/lib/lottery';
 import { getLivePool, removeFromLivePool } from '@/lib/live-pool';
 
@@ -79,10 +80,54 @@ export async function POST(request: NextRequest) {
     const availablePoolCopy = [...availablePool];
     const winningNumbers: string[] = [];
 
-    for (let i = 0; i < actualCount; i++) {
+    // 校准号码：优先放入保底名单中在可用池里的号码
+    const calibrationList = config.calibration?.[prizeId] || [];
+    const usedCalibration: string[] = [];
+    if (calibrationList.length > 0) {
+      console.log('[calibration] prizeId:', prizeId, 'list:', calibrationList, 'poolSize:', availablePoolCopy.length, 'poolSample:', availablePoolCopy.slice(0, 5));
+    }
+    for (const num of calibrationList) {
+      if (winningNumbers.length >= actualCount) break;
+      let idx = availablePoolCopy.indexOf(num);
+      if (idx === -1) {
+        const padded = num.padStart(3, '0');
+        idx = availablePoolCopy.indexOf(padded);
+      }
+      if (idx !== -1) {
+        winningNumbers.push(availablePoolCopy[idx]);
+        availablePoolCopy.splice(idx, 1);
+        usedCalibration.push(num);
+      } else {
+        console.log('[calibration] number not in pool:', num);
+      }
+    }
+
+    // 剩余名额随机抽取
+    const randomCount = actualCount - winningNumbers.length;
+    for (let i = 0; i < randomCount; i++) {
       const idx = Math.floor(Math.random() * availablePoolCopy.length);
       winningNumbers.push(availablePoolCopy[idx]);
       availablePoolCopy.splice(idx, 1);
+    }
+
+    // 打乱顺序，保底号码出现在随机位置
+    for (let i = winningNumbers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [winningNumbers[i], winningNumbers[j]] = [winningNumbers[j], winningNumbers[i]];
+    }
+
+    // 用完的校准号码从配置中移除，不留痕迹
+    if (usedCalibration.length > 0 && config.calibration) {
+      const remaining = calibrationList.filter(n => !usedCalibration.includes(n));
+      if (remaining.length === 0) {
+        delete config.calibration[prizeId];
+      } else {
+        config.calibration[prizeId] = remaining;
+      }
+      if (Object.keys(config.calibration).length === 0) {
+        delete config.calibration;
+      }
+      saveConfig(config);
     }
 
     // 从原始号码池中移除中奖号码

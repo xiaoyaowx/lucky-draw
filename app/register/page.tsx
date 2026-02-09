@@ -18,6 +18,8 @@ export default function RegisterPage() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
   const [loading, setLoading] = useState(false);
+  const [registeredId, setRegisteredId] = useState<string | null>(null);
+  const poolVersionRef = useRef('0');
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
@@ -46,6 +48,20 @@ export default function RegisterPage() {
           length: data.registerSettings.length || DEFAULT_REGISTER_SETTINGS.length,
           allowLetters: !!data.registerSettings.allowLetters,
         });
+      }
+      // 比对清空时间戳，管理员清空后自动解锁
+      const savedClearedAt = localStorage.getItem('lucky-draw-pool-version');
+      const serverClearedAt = String(data.version || 0);
+      poolVersionRef.current = serverClearedAt;
+      if (savedClearedAt && savedClearedAt !== serverClearedAt) {
+        localStorage.removeItem('lucky-draw-registered-id');
+        localStorage.removeItem('lucky-draw-pool-version');
+        setRegisteredId(null);
+      } else {
+        const saved = localStorage.getItem('lucky-draw-registered-id');
+        if (saved) {
+          setRegisteredId(saved);
+        }
       }
     } catch {
       // ignore
@@ -120,6 +136,9 @@ export default function RegisterPage() {
       setMessage(data.message);
       setMessageType(data.success ? 'success' : 'error');
       if (data.success) {
+        localStorage.setItem('lucky-draw-registered-id', employeeId);
+        localStorage.setItem('lucky-draw-pool-version', poolVersionRef.current);
+        setRegisteredId(employeeId);
         setCode(Array(registerSettings.length).fill(''));
         fetchStatus();
       }
@@ -141,6 +160,12 @@ export default function RegisterPage() {
             <div className="closed-icon">&#128274;</div>
             <p>登记通道暂未开放</p>
             <p className="closed-hint">请等待管理员开启登记</p>
+          </div>
+        ) : registeredId ? (
+          <div className="register-closed">
+            <div className="closed-icon">&#9989;</div>
+            <p>您已成功登记</p>
+            <p className="closed-hint">工号：{registeredId}</p>
           </div>
         ) : (
           <>

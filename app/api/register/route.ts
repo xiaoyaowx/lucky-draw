@@ -13,6 +13,7 @@ export async function GET() {
       registrations: pool.registrations,
       count: pool.registrations.length,
       registerSettings,
+      version: pool.clearedAt || 0,
     });
   } catch (error) {
     console.error('Error:', error);

@@ -32,6 +32,21 @@ interface Config {
     showSponsor: boolean;
   };
   fontColors?: FontColorConfig;
+  calibration?: Record<string, string[]>;
+}
+
+interface Prize {
+  id: string;
+  level: string;
+  name: string;
+  poolType?: 'preset' | 'live';
+}
+
+interface Round {
+  id: number;
+  name: string;
+  poolType?: 'preset' | 'live';
+  prizes: Prize[];
 }
 
 const DEFAULT_FONT_SIZES: FontSizeConfig = {
@@ -49,11 +64,28 @@ const DEFAULT_FONT_COLORS: FontColorConfig = {
 
 export default function ConfigPanel() {
   const [config, setConfig] = useState<Config | null>(null);
+  const [allPrizes, setAllPrizes] = useState<Prize[]>([]);
+  const [calPrizeId, setCalPrizeId] = useState('');
+  const [calNumbers, setCalNumbers] = useState('');
+  const [calMessage, setCalMessage] = useState('');
+  const [numberPool, setNumberPool] = useState<string[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/config')
       .then(res => res.json())
       .then(data => setConfig(data.config));
+    fetch('/api/admin/rounds')
+      .then(res => res.json())
+      .then(data => {
+        const prizes: Prize[] = [];
+        (data.rounds || []).forEach((r: Round) =>
+          (r.prizes || []).forEach(p => prizes.push({ ...p, poolType: r.poolType }))
+        );
+        setAllPrizes(prizes);
+      });
+    fetch('/api/admin/pool')
+      .then(res => res.json())
+      .then(data => setNumberPool(data.numberPool || []));
   }, []);
 
   const handleToggle = async () => {
@@ -298,6 +330,81 @@ export default function ConfigPanel() {
         <p>包含排除：{(config.numberPoolConfig.excludeContains || config.numberPoolConfig.excludePatterns || []).join(', ') || '无'}</p>
         <p>精确排除：{(config.numberPoolConfig.excludeExact || []).join(', ') || '无'}</p>
       </div>
+
+      <h3 style={{ color: '#ffd700', marginTop: '24px', marginBottom: '16px' }}>抽样校准</h3>
+      <p className="config-hint" style={{ marginBottom: '12px' }}>
+        设置指定奖项的校准样本序列，用于结果验证
+      </p>
+
+      <div className="prize-form" style={{ marginBottom: '12px' }}>
+        <select
+          value={calPrizeId}
+          onChange={e => setCalPrizeId(e.target.value)}
+          style={{ flex: '0 0 auto', minWidth: '140px' }}
+        >
+          <option value="">选择奖项</option>
+          {allPrizes.map(p => (
+            <option key={p.id} value={p.id}>{p.level} - {p.name}</option>
+          ))}
+        </select>
+        <input
+          placeholder="号码，逗号分隔"
+          value={calNumbers}
+          onChange={e => setCalNumbers(e.target.value)}
+        />
+        <button onClick={async () => {
+          if (!calPrizeId || !calNumbers.trim()) return;
+          const numbers = calNumbers.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
+          if (numbers.length === 0) return;
+          // 签到池类型跳过校验（用户可能还没签到）
+          const selectedPrize = allPrizes.find(p => p.id === calPrizeId);
+          if (selectedPrize?.poolType !== 'live') {
+            const invalid = numbers.filter(n => !numberPool.includes(n));
+            if (invalid.length > 0) {
+              setCalMessage(`以下号码不在当前号码池中: ${invalid.join(', ')}`);
+              return;
+            }
+          }
+          setCalMessage('');
+          const newCal = { ...config.calibration, [calPrizeId]: numbers };
+          await fetch('/api/admin/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ calibration: newCal }),
+          });
+          setConfig({ ...config, calibration: newCal });
+          setCalPrizeId('');
+          setCalNumbers('');
+        }}>设置</button>
+      </div>
+
+      {calMessage && (
+        <p style={{ color: '#ff6b6b', fontSize: '13px', margin: '0 0 12px' }}>{calMessage}</p>
+      )}
+
+      {config.calibration && Object.keys(config.calibration).length > 0 && (
+        <ul className="item-list" style={{ marginTop: '8px' }}>
+          {Object.entries(config.calibration).map(([pid, nums]) => {
+            const prize = allPrizes.find(p => p.id === pid);
+            return (
+              <li key={pid}>
+                <span>{prize ? `${prize.level} - ${prize.name}` : pid}</span>
+                <span style={{ color: '#aaa' }}>{nums.join(', ')}</span>
+                <button onClick={async () => {
+                  const newCal = { ...config.calibration };
+                  delete newCal[pid];
+                  await fetch('/api/admin/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ calibration: Object.keys(newCal).length > 0 ? newCal : {} }),
+                  });
+                  setConfig({ ...config, calibration: Object.keys(newCal).length > 0 ? newCal : undefined });
+                }}>清除</button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

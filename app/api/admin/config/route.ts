@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest) {
 
     // 更新登记设置
     if (updates.registerSettings) {
-      const nextSettings = { ...(config.registerSettings || {}) };
+      const nextSettings = { ...config.registerSettings! };
 
       if (updates.registerSettings.length !== undefined) {
         const length = Number(updates.registerSettings.length);
@@ -79,6 +79,11 @@ export async function PUT(request: NextRequest) {
       }
 
       config.registerSettings = nextSettings;
+    }
+
+    // 更新校准配置
+    if (updates.calibration !== undefined) {
+      config.calibration = updates.calibration;
     }
 
     saveConfig(config);
