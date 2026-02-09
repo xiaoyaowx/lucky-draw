@@ -110,50 +110,74 @@ export default function PrizeManager() {
 
       {selectedRound && (
         <>
-          <div className="prize-form">
-            <input
-              placeholder="奖项等级"
-              value={formData.level}
-              onChange={e => setFormData({ ...formData, level: e.target.value })}
-            />
-            <input
-              placeholder="奖品名称"
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-            />
-            <input
-              type="number"
-              placeholder="数量"
-              value={formData.quantity}
-              onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
-            />
-            <input
-              type="color"
-              value={formData.color}
-              onChange={e => setFormData({ ...formData, color: e.target.value })}
-            />
-            <input
-              placeholder="赞助商"
-              value={formData.sponsor}
-              onChange={e => setFormData({ ...formData, sponsor: e.target.value })}
-            />
-            <button onClick={handleSubmit}>{editingId ? '更新' : '添加'}</button>
-            {editingId && <button onClick={resetForm}>取消</button>}
+          <div className="admin-card">
+            <div className="admin-card-header">
+              {editingId ? '编辑奖品' : '添加奖品'}
+            </div>
+            <div className="prize-form">
+              <input
+                placeholder="奖项等级"
+                value={formData.level}
+                onChange={e => setFormData({ ...formData, level: e.target.value })}
+                style={{ minWidth: 90 }}
+              />
+              <input
+                placeholder="奖品名称"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                style={{ flex: 1, minWidth: 120 }}
+              />
+              <input
+                type="number"
+                placeholder="数量"
+                value={formData.quantity}
+                onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
+                style={{ width: 70 }}
+              />
+              <input
+                type="color"
+                value={formData.color}
+                onChange={e => setFormData({ ...formData, color: e.target.value })}
+                title="奖项颜色"
+              />
+              <input
+                placeholder="赞助商（选填）"
+                value={formData.sponsor}
+                onChange={e => setFormData({ ...formData, sponsor: e.target.value })}
+                style={{ minWidth: 100 }}
+              />
+              <button className="btn-primary" onClick={handleSubmit}>{editingId ? '更新' : '添加'}</button>
+              {editingId && <button className="btn-ghost" onClick={resetForm}>取消</button>}
+            </div>
           </div>
 
-          <ul className="item-list prize-list">
+          <ul className="item-list">
             {prizes.map(prize => (
               <li key={prize.id}>
-                <span style={{ color: prize.color }}>{prize.level}</span>
+                <span style={{ color: prize.color, flex: '0 0 auto', fontWeight: 600 }}>{prize.level}</span>
                 <span>{prize.name}</span>
-                <span>x{prize.quantity}</span>
-                <span>{prize.sponsor}</span>
-                <button onClick={() => handleEdit(prize)}>编辑</button>
-                <button onClick={() => handleDelete(prize.id)}>删除</button>
+                <span style={{ flex: '0 0 auto', color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>x{prize.quantity}</span>
+                {prize.sponsor && (
+                  <span style={{ flex: '0 0 auto', color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{prize.sponsor}</span>
+                )}
+                <button className="btn-sm" onClick={() => handleEdit(prize)}>编辑</button>
+                <button className="btn-danger btn-sm" onClick={() => handleDelete(prize.id)}>删除</button>
               </li>
             ))}
           </ul>
+
+          {prizes.length === 0 && (
+            <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: 20, fontSize: 14 }}>
+              暂无奖品，请添加
+            </p>
+          )}
         </>
+      )}
+
+      {!selectedRound && (
+        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: 30, fontSize: 14 }}>
+          请先选择一个轮次
+        </p>
       )}
     </div>
   );

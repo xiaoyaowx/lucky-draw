@@ -20,7 +20,8 @@
   },
   "displaySettings": {
     "showQuantity": false,
-    "showSponsor": true
+    "showSponsor": true,
+    "showNumberBorder": false
   },
   "fontColors": {
     "prizeName": "#ffffff",

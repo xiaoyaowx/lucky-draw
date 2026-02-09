@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
       numberPool: lotteryState.numberPool,
       numbersPerRow: config.numbersPerRow || 10,
       fontSizes: config.fontSizes || { prizeLevel: 56, prizeName: 42, sponsor: 28, numberCard: 38 },
-      displaySettings: config.displaySettings || { showQuantity: true, showSponsor: true },
+      displaySettings: config.displaySettings || { showQuantity: true, showSponsor: true, showNumberBorder: true, maskPhone: false },
       fontColors: config.fontColors || { prizeName: '#ffffff', sponsor: '#eeeeee', numberCard: '#ffd700' },
     };
     broadcastStateUpdate(fullState);

@@ -64,6 +64,7 @@ export default function RoundManager() {
           value={newName}
           onChange={e => setNewName(e.target.value)}
           placeholder="输入轮次名称"
+          style={{ flex: 1, minWidth: 140 }}
         />
         <select
           value={newPoolType}
@@ -72,7 +73,7 @@ export default function RoundManager() {
           <option value="preset">预设号码池</option>
           <option value="live">签到登记池</option>
         </select>
-        <button onClick={handleAdd}>添加轮次</button>
+        <button className="btn-primary" onClick={handleAdd}>添加轮次</button>
       </div>
 
       <ul className="item-list">
@@ -83,6 +84,7 @@ export default function RoundManager() {
                 <input
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
+                  style={{ flex: 1 }}
                 />
                 <select
                   value={editPoolType}
@@ -91,37 +93,35 @@ export default function RoundManager() {
                   <option value="preset">预设号码池</option>
                   <option value="live">签到登记池</option>
                 </select>
-                <button onClick={() => handleUpdate(round.id)}>保存</button>
-                <button onClick={() => setEditingId(null)}>取消</button>
+                <button className="btn-primary btn-sm" onClick={() => handleUpdate(round.id)}>保存</button>
+                <button className="btn-ghost btn-sm" onClick={() => setEditingId(null)}>取消</button>
               </>
             ) : (
               <>
                 <span>
                   {round.name}
-                  <span style={{
-                    marginLeft: 8,
-                    fontSize: 12,
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    background: round.poolType === 'live'
-                      ? 'rgba(76,175,80,0.2)'
-                      : 'rgba(255,255,255,0.1)',
-                    color: round.poolType === 'live' ? '#4caf50' : 'rgba(255,255,255,0.6)',
-                  }}>
+                  <span className={`status-tag ${round.poolType === 'live' ? 'open' : 'closed'}`}
+                    style={{ marginLeft: 8 }}>
                     {round.poolType === 'live' ? '签到登记' : '预设池'}
                   </span>
                 </span>
-                <button onClick={() => {
+                <button className="btn-sm" onClick={() => {
                   setEditingId(round.id);
                   setEditName(round.name);
                   setEditPoolType(round.poolType || 'preset');
                 }}>编辑</button>
-                <button onClick={() => handleDelete(round.id)}>删除</button>
+                <button className="btn-danger btn-sm" onClick={() => handleDelete(round.id)}>删除</button>
               </>
             )}
           </li>
         ))}
       </ul>
+
+      {rounds.length === 0 && (
+        <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: 20, fontSize: 14 }}>
+          暂无轮次，请添加
+        </p>
+      )}
     </div>
   );
 }

@@ -108,6 +108,8 @@ export interface FontSizeConfig {
 export interface DisplaySettings {
   showQuantity: boolean;   // 是否显示奖品数量
   showSponsor: boolean;    // 是否显示赞助商
+  showNumberBorder: boolean; // 是否显示号码卡片边框
+  maskPhone: boolean;      // 是否隐藏手机号中间四位
 }
 
 export interface FontColorConfig {
@@ -185,6 +187,8 @@ const DEFAULT_CONFIG: Config = {
   displaySettings: {
     showQuantity: true,
     showSponsor: true,
+    showNumberBorder: true,
+    maskPhone: false,
   },
   fontColors: {
     prizeName: '#ffffff',

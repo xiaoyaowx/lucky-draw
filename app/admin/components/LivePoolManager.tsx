@@ -115,97 +115,90 @@ export default function LivePoolManager() {
     <div className="manager-panel">
       <h2>签到登记管理</h2>
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>
-            登记状态：
-            <span style={{ color: pool.isOpen ? '#4caf50' : '#f44336', fontWeight: 'bold' }}>
+      {/* 登记状态 */}
+      <div className="admin-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)' }}>登记状态</span>
+            <span className={`status-tag ${pool.isOpen ? 'open' : 'closed'}`}>
               {pool.isOpen ? '已开启' : '已关闭'}
             </span>
-          </span>
+          </div>
           <button
+            className={pool.isOpen ? 'btn-danger' : 'btn-primary'}
             onClick={toggleOpen}
             disabled={loading}
-            style={{
-              background: pool.isOpen
-                ? 'linear-gradient(135deg, #f44336, #d32f2f)'
-                : 'linear-gradient(135deg, #4caf50, #388e3c)',
-              color: '#fff',
-            }}
           >
             {pool.isOpen ? '关闭登记' : '开启登记'}
           </button>
         </div>
 
-        <div style={{ marginBottom: 16, padding: 12, background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>
-            登记页面链接（供用户扫码访问）：
-          </p>
-          <code style={{ color: '#ffd700', fontSize: 14, wordBreak: 'break-all' }}>
+        <div style={{
+          marginTop: 14,
+          padding: '10px 14px',
+          background: 'rgba(0,0,0,0.2)',
+          borderRadius: 8,
+          fontSize: 13,
+        }}>
+          <span style={{ color: 'rgba(255,255,255,0.5)' }}>登记链接：</span>
+          <code style={{ color: '#ffd700', wordBreak: 'break-all' }}>
             {typeof window !== 'undefined' ? `${window.location.origin}/register` : '/register'}
           </code>
         </div>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 12 }}>登记设置</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)' }}>工号位数：</span>
+      {/* 登记设置 */}
+      <div className="admin-card">
+        <div className="admin-card-header">登记设置</div>
+        <div className="form-row">
+          <label>工号位数</label>
           <input
             type="number"
             min="1"
             max="20"
             value={registerSettings.length}
             onChange={(e) => handleRegisterLengthChange(parseInt(e.target.value))}
-            style={{ width: '70px' }}
+            style={{ width: 70 }}
             disabled={loading}
           />
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>(1-20)</span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>1 ~ 20</span>
         </div>
-        <label style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', display: 'inline-flex', gap: 8 }}>
+        <div className="form-row">
+          <label>允许字母</label>
           <input
             type="checkbox"
             checked={registerSettings.allowLetters}
             onChange={handleRegisterAllowLettersChange}
             disabled={loading}
           />
-          允许字母（A-Z）
-        </label>
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 8 }}>
-          关闭时仅允许数字，开启后允许字母和数字混合
-        </p>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+            开启后允许字母和数字混合输入
+          </span>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            已登记工号 ({pool.count} 人)
+      {/* 已登记列表 */}
+      <div className="admin-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div className="admin-card-header" style={{ marginBottom: 0 }}>
+            已登记工号
+            <span className="badge" style={{ background: 'rgba(255,215,0,0.12)', color: '#ffd700' }}>
+              {pool.count} 人
+            </span>
             <button
+              className="btn-ghost btn-sm"
               onClick={fetchPool}
               disabled={loading}
               title="刷新"
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(255,255,255,0.3)',
-                color: 'rgba(255,255,255,0.7)',
-                fontSize: 12,
-                padding: '2px 8px',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
+              style={{ marginLeft: 4, padding: '2px 8px', fontSize: 14 }}
             >
               &#x21bb;
             </button>
-          </h3>
+          </div>
           <button
+            className="btn-danger btn-sm"
             onClick={handleClear}
             disabled={loading || pool.count === 0}
-            style={{
-              background: 'linear-gradient(135deg, #ff5722, #e64a19)',
-              color: '#fff',
-              fontSize: 12,
-              padding: '6px 12px',
-            }}
           >
             清空登记
           </button>
@@ -213,20 +206,20 @@ export default function LivePoolManager() {
 
         {pool.registrations.length > 0 ? (
           <div style={{
-            maxHeight: 300,
+            maxHeight: 280,
             overflowY: 'auto',
-            padding: 12,
-            background: 'rgba(0,0,0,0.3)',
-            borderRadius: 6,
+            padding: 14,
+            background: 'rgba(0,0,0,0.2)',
+            borderRadius: 8,
             fontFamily: "'Courier New', monospace",
             fontSize: 13,
-            color: 'rgba(255,255,255,0.8)',
+            color: 'rgba(255,255,255,0.7)',
             lineHeight: 1.8,
           }}>
-            {pool.registrations.join('、')}
+            {pool.registrations.join(', ')}
           </div>
         ) : (
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: 20 }}>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: 24 }}>
             暂无登记记录
           </p>
         )}

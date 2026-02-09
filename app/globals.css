@@ -116,8 +116,6 @@ body {
 }
 
 .number-card {
-  width: 105px;
-  height: 68px;
   background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.15));
   border: 3px solid rgba(255, 215, 0, 0.6);
   border-radius: 10px;
@@ -129,6 +127,7 @@ body {
   font-family: 'Courier New', monospace;
   text-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
   box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+  white-space: nowrap;
 }
 
 .number-card.winner {
@@ -352,71 +351,112 @@ body {
 .admin-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  padding: 30px;
+  padding: 24px 20px 40px;
   color: #fff;
 }
 
 .admin-title {
-  font-size: 32px;
+  font-size: 26px;
   color: #ffd700;
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
+  letter-spacing: 2px;
 }
 
 .admin-tabs {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   justify-content: center;
-  margin-bottom: 30px;
+  margin-bottom: 24px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  padding: 4px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .tab-btn {
-  padding: 12px 24px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 215, 0, 0.3);
-  color: #fff;
+  padding: 10px 22px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
   border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  transition: all 0.3s;
+  font-size: 14px;
+  transition: all 0.25s;
+  flex: 1;
+  text-align: center;
 }
 
 .tab-btn:hover {
-  background: rgba(255, 215, 0, 0.2);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .tab-btn.active {
-  background: #ffd700;
-  color: #000;
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
   font-weight: bold;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.1);
 }
 
 .admin-content {
-  max-width: 800px;
+  max-width: 840px;
   margin: 0 auto;
 }
 
+/* 管理面板 */
 .manager-panel {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 215, 0, 0.2);
-  border-radius: 12px;
-  padding: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 28px;
 }
 
 .manager-panel h2 {
-  color: #ffd700;
-  font-size: 24px;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 215, 0, 0.3);
+  color: #fff;
+  font-size: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 600;
 }
 
 .manager-panel h3 {
-  color: #ffd700;
-  font-size: 18px;
-  margin: 20px 0 10px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+  margin: 20px 0 12px;
+  font-weight: 600;
 }
 
+/* 分组卡片 */
+.admin-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.admin-card-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-card-header .badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: normal;
+}
+
+/* 表单 */
 .add-form,
 .prize-form,
 .gen-form {
@@ -424,24 +464,32 @@ body {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+  align-items: flex-end;
 }
 
 .manager-panel input,
 .manager-panel select,
 .manager-panel textarea {
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 215, 0, 0.3);
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.manager-panel input::placeholder,
+.manager-panel textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .manager-panel input:focus,
 .manager-panel select:focus,
 .manager-panel textarea:focus {
   outline: none;
-  border-color: #ffd700;
+  border-color: rgba(255, 215, 0, 0.5);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .manager-panel select option {
@@ -450,25 +498,92 @@ body {
 }
 
 .manager-panel input[type="color"] {
-  width: 50px;
-  padding: 2px;
+  width: 42px;
+  height: 36px;
+  padding: 3px;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
-.manager-panel button {
-  padding: 10px 20px;
-  background: linear-gradient(135deg, #ffd700, #ff8c00);
-  border: none;
-  color: #000;
-  border-radius: 6px;
+.manager-panel input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #ffd700;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
+}
+
+/* 按钮体系 */
+.manager-panel button {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .manager-panel button:hover {
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
+.manager-panel button:active {
+  transform: scale(0.97);
+}
+
+/* 主要按钮 */
+.btn-primary {
+  background: linear-gradient(135deg, #ffd700, #f0c000);
+  color: #1a1a2e;
+}
+
+/* 次要按钮（默认） */
+.manager-panel button {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.manager-panel button.btn-primary,
+.manager-panel .add-form > button:last-of-type,
+.manager-panel .prize-form > button:first-of-type,
+.manager-panel .gen-form > button:last-of-type {
+  background: linear-gradient(135deg, #ffd700, #f0c000);
+  color: #1a1a2e;
+  border: none;
+}
+
+/* 危险按钮 */
+.btn-danger {
+  background: rgba(244, 67, 54, 0.15) !important;
+  color: #f44336 !important;
+  border: 1px solid rgba(244, 67, 54, 0.25) !important;
+}
+
+.btn-danger:hover {
+  background: rgba(244, 67, 54, 0.25) !important;
+}
+
+/* 小号按钮 */
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+/* 幽灵按钮 */
+.btn-ghost {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #fff !important;
+}
+
+/* 列表 */
 .item-list {
   list-style: none;
 }
@@ -477,15 +592,45 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 215, 0, 0.15);
-  border-radius: 6px;
-  margin-bottom: 8px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  transition: background 0.2s;
+}
+
+.item-list li:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .item-list li span {
   flex: 1;
+}
+
+.item-list li button {
+  padding: 5px 12px;
+  font-size: 12px;
+}
+
+/* 状态标签 */
+.status-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.status-tag.open {
+  background: rgba(76, 175, 80, 0.15);
+  color: #66bb6a;
+}
+
+.status-tag.closed {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .round-select {
@@ -494,13 +639,16 @@ body {
 
 .round-select label {
   margin-right: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
 }
 
 .pool-section {
-  margin-bottom: 24px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  margin-bottom: 16px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
 }
 
 .pool-section textarea {
@@ -514,11 +662,12 @@ body {
 
 .pool-numbers {
   padding: 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
   font-family: 'Courier New', monospace;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .pool-numbers.expanded {
@@ -527,51 +676,104 @@ body {
 }
 
 .pool-numbers.expanded::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .pool-numbers.expanded::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .pool-numbers.expanded::-webkit-scrollbar-thumb {
-  background: rgba(255, 215, 0, 0.5);
-  border-radius: 4px;
+  background: rgba(255, 215, 0, 0.3);
+  border-radius: 3px;
 }
 
 .pool-numbers.expanded::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 215, 0, 0.7);
+  background: rgba(255, 215, 0, 0.5);
 }
 
+/* 配置项 */
 .config-item {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .config-item label {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .config-hint {
-  margin-top: 8px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .config-info {
-  margin-top: 30px;
+  margin-top: 24px;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+
+.config-info h3 {
+  margin-top: 0;
 }
 
 .config-info p {
-  margin: 8px 0;
-  color: rgba(255, 255, 255, 0.8);
+  margin: 6px 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+/* 表单行 */
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-row label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 100px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.form-row .color-hex {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: 'Courier New', monospace;
+}
+
+/* 分割线 */
+.admin-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 20px 0;
+}
+
+/* 统计信息 */
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 16px;
+}
+
+.stat-row .stat-value {
+  color: #ffd700;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
 }
 
 /* 控制页面样式 */

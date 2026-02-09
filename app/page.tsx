@@ -41,6 +41,8 @@ interface FontColorConfig {
 interface DisplaySettings {
   showQuantity: boolean;
   showSponsor: boolean;
+  showNumberBorder: boolean;
+  maskPhone: boolean;
 }
 
 interface DisplayState {
@@ -354,9 +356,18 @@ export default function DisplayPage() {
           {displayNumbers.length > 0 ? (() => {
             // 动态计算样式
             const numFontSize = state?.fontSizes?.numberCard || 38;
-            const cardWidth = numFontSize * 2.8;
-            const cardHeight = numFontSize * 1.8;
             const borderWidth = Math.max(2, numFontSize * 0.08);
+            const showBorder = state?.displaySettings?.showNumberBorder ?? true;
+            const maskPhone = state?.displaySettings?.maskPhone ?? false;
+            const maskNum = (n: string) =>
+              maskPhone && n.length === 11 ? n.slice(0, 3) + '****' + n.slice(7) : n;
+            // 用脱敏后的文本计算卡片宽度
+            const displayTexts = displayNumbers.map(maskNum);
+            const maxLen = Math.max(...displayTexts.map(t => t.length), 1);
+            const charWidth = numFontSize * 0.65;
+            const cardPadding = numFontSize * 0.8;
+            const cardWidth = Math.max(numFontSize * 2.8, maxLen * charWidth + cardPadding);
+            const cardHeight = numFontSize * 1.8;
             const gap = 15;
             const maxWidth = (state?.numbersPerRow || 10) * (cardWidth + gap);
 
@@ -376,12 +387,14 @@ export default function DisplayPage() {
                       fontSize: `${numFontSize}px`,
                       width: `${cardWidth}px`,
                       height: `${cardHeight}px`,
-                      borderWidth: `${borderWidth}px`,
+                      borderWidth: showBorder ? `${borderWidth}px` : 0,
                       color: fontColors.numberCard,
-                      borderColor: fontColors.numberCard
+                      borderColor: showBorder ? fontColors.numberCard : 'transparent',
+                      background: showBorder ? undefined : 'transparent',
+                      boxShadow: showBorder ? undefined : 'none',
                     }}
                   >
-                    {num}
+                    {displayTexts[i]}
                   </div>
                 ))}
               </div>

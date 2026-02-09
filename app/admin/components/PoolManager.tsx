@@ -8,7 +8,6 @@ type PoolTab = 'preset' | 'live';
 function PresetPoolPanel() {
   const [pool, setPool] = useState<string[]>([]);
   const [manualInput, setManualInput] = useState('');
-  const [csvInput, setCsvInput] = useState('');
   const [expanded, setExpanded] = useState(false);
   const [genConfig, setGenConfig] = useState({
     start: 1,
@@ -45,6 +44,7 @@ function PresetPoolPanel() {
 
   const handleManualSet = async () => {
     const numbers = manualInput.split(/[,\n\r\s]+/).filter(n => n);
+    if (numbers.length === 0) return;
     await fetch('/api/admin/pool', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -54,13 +54,13 @@ function PresetPoolPanel() {
     fetchPool();
   };
 
-  const handleImport = async () => {
-    await fetch('/api/admin/pool/import', {
+  const handleClear = async () => {
+    if (!confirm('确定要清空号码池吗？')) return;
+    await fetch('/api/admin/pool', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csv: csvInput }),
+      body: JSON.stringify({ numbers: [] }),
     });
-    setCsvInput('');
     fetchPool();
   };
 
@@ -81,7 +81,16 @@ function PresetPoolPanel() {
   return (
     <div className="manager-panel">
       <h2>用户池管理</h2>
-      <p>当前号码数量：{pool.length}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <p className="stat-row" style={{ margin: 0 }}>当前号码数量：<span className="stat-value">{pool.length}</span></p>
+        <button
+          className="btn-danger btn-sm"
+          onClick={handleClear}
+          disabled={pool.length === 0}
+        >
+          清空号码池
+        </button>
+      </div>
 
       <div className="pool-section">
         <h3>自动生成</h3>
@@ -104,32 +113,21 @@ function PresetPoolPanel() {
           </label>
           <button onClick={handleGenerate}>生成</button>
         </div>
-        <p className="hint" style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
+        <p className="config-hint" style={{ marginTop: 8 }}>
           包含排除：排除所有包含该数字的号码（如"4"会排除4,14,24,40,140...）<br/>
           精确排除：只排除精确等于该数字的号码（如"13"只排除13，保留113,130...）
         </p>
       </div>
 
       <div className="pool-section">
-        <h3>批量导入 (CSV)</h3>
-        <textarea
-          value={csvInput}
-          onChange={e => setCsvInput(e.target.value)}
-          placeholder="输入号码，逗号或换行分隔"
-          rows={4}
-        />
-        <button onClick={handleImport}>导入</button>
-      </div>
-
-      <div className="pool-section">
-        <h3>手动输入</h3>
+        <h3>批量导入</h3>
         <textarea
           value={manualInput}
           onChange={e => setManualInput(e.target.value)}
           placeholder="输入号码，逗号或换行分隔"
           rows={4}
         />
-        <button onClick={handleManualSet}>设置</button>
+        <button onClick={handleManualSet}>导入</button>
       </div>
 
       <div className="pool-preview">
@@ -165,7 +163,7 @@ export default function PoolManager() {
 
   return (
     <div>
-      <div className="admin-tabs" style={{ justifyContent: 'flex-start', marginBottom: '20px' }}>
+      <div className="admin-tabs" style={{ justifyContent: 'flex-start', marginBottom: 20, maxWidth: 260 }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
