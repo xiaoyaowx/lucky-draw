@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getConfig, saveConfig } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 获取配置
 export async function GET() {
@@ -87,6 +89,7 @@ export async function PUT(request: NextRequest) {
     }
 
     saveConfig(config);
+    broadcastStateUpdate(getFullState());
     return NextResponse.json({ config });
   } catch (error) {
     console.error('Error:', error);

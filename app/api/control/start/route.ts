@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateDisplayState, getDisplayState } from '@/lib/display-state';
 import { getPrizesData, getLotteryState, getConfig } from '@/lib/lottery';
 import { getLivePool } from '@/lib/live-pool';
-import { broadcastRollingStart } from '@/lib/ws-manager';
+import { broadcastRollingStart, broadcastStateUpdate } from '@/lib/ws-manager';
+import { getFullState } from '@/lib/full-state';
 
 interface StartRollingRequest {
   count: number;
@@ -64,12 +65,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `${poolName}中没有可用号码` }, { status: 400 });
     }
 
-    updateDisplayState({
+    const newDisplayState = updateDisplayState({
       isRolling: true,
       drawCount: count,
       currentPrizeId: prizeId,
       winners: [],
+      rollingPool: availablePool,
     });
+
+    // 广播完整状态（让展示屏拿到 rollingPool，用于本地滚动显示）
+    broadcastStateUpdate(getFullState(newDisplayState));
 
     broadcastRollingStart(count, prizeId);
     return NextResponse.json({ success: true });

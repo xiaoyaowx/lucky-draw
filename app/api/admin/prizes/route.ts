@@ -6,6 +6,8 @@ import {
   saveLotteryState,
   Prize,
 } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 获取奖品列表（可按轮次筛选）
 export async function GET(request: NextRequest) {
@@ -37,7 +39,7 @@ export async function GET(request: NextRequest) {
 // 新增奖品
 export async function POST(request: NextRequest) {
   try {
-    const { roundId, level, name, quantity, color, sponsor } = await request.json();
+    const { roundId, level, name, quantity, color, sponsor, image } = await request.json();
 
     if (!roundId || !level || !name || quantity === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -51,8 +53,16 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成新的奖品 ID
-    const existingIds = data.rounds.flatMap(r => r.prizes.map(p => p.id));
-    const newId = `${roundId}-${data.rounds[roundIndex].prizes.length + 1}`;
+    const suffixes = data.rounds[roundIndex].prizes
+      .map(p => {
+        const parts = p.id.split('-');
+        const last = parts[parts.length - 1];
+        const n = Number(last);
+        return Number.isFinite(n) ? n : 0;
+      })
+      .filter(n => n > 0);
+    const nextSuffix = (suffixes.length > 0 ? Math.max(...suffixes) : 0) + 1;
+    const newId = `${roundId}-${nextSuffix}`;
 
     const newPrize: Prize = {
       id: newId,
@@ -61,6 +71,7 @@ export async function POST(request: NextRequest) {
       quantity,
       color: color || '#FFD700',
       sponsor: sponsor || '',
+      ...(image ? { image } : {}),
     };
 
     data.rounds[roundIndex].prizes.push(newPrize);
@@ -70,6 +81,8 @@ export async function POST(request: NextRequest) {
     const state = getLotteryState();
     state.prizeRemaining[newId] = quantity;
     saveLotteryState(state);
+
+    broadcastStateUpdate(getFullState());
 
     return NextResponse.json({ prize: newPrize });
   } catch (error) {

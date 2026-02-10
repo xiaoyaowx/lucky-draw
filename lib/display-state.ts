@@ -6,6 +6,8 @@ export interface DisplayState {
   drawCount: number;
   isRolling: boolean;
   winners: string[];
+  // 开始滚动时锁定的候选池（用于保证“滚动看到的范围”与最终抽取一致）
+  rollingPool?: string[];
   showQRCode?: boolean;
   qrCodeMessage?: string;
 }
@@ -31,6 +33,7 @@ function cloneState(state: DisplayState): DisplayState {
   return {
     ...state,
     winners: [...state.winners],
+    rollingPool: state.rollingPool ? [...state.rollingPool] : undefined,
   };
 }
 
@@ -54,6 +57,10 @@ export function updateDisplayState(updates: Partial<DisplayState>): DisplayState
     ...updates,
     // 确保 winners 数组也被正确处理
     winners: updates.winners ? [...updates.winners] : [...state.winners],
+    rollingPool:
+      updates.rollingPool !== undefined
+        ? (updates.rollingPool ? [...updates.rollingPool] : undefined)
+        : (state.rollingPool ? [...state.rollingPool] : undefined),
   };
   global.displayState = newState;
   return cloneState(newState);

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLotteryState, saveLotteryState, getPrizesData, getInitialPrizeRemaining } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 获取号码池
 export async function GET() {
@@ -35,6 +37,8 @@ export async function POST(request: NextRequest) {
       allWinners: [] as string[],
     };
     saveLotteryState(state);
+
+    broadcastStateUpdate(getFullState());
 
     return NextResponse.json({
       numberPool: state.numberPool,

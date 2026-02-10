@@ -6,8 +6,7 @@
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "cross-env NODE_ENV=production tsx server.ts",
-    "pack": "node scripts/build-exe.js",
-    "deploy": "node scripts/deploy.js"
+    "pack": "node scripts/build-exe.js"
   },
   "dependencies": {
     "@types/node": "^25.1.0",

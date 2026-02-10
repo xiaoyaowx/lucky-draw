@@ -5,6 +5,8 @@ import {
   saveLotteryState,
   getInitialPrizeRemaining,
 } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate, broadcastReset } from '@/lib/ws-manager';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,6 +50,9 @@ export async function POST(request: NextRequest) {
 
       saveLotteryState(currentState);
 
+      // 通知大屏/控制台刷新
+      broadcastStateUpdate(getFullState());
+
       return NextResponse.json({
         ...currentState,
         resetPrizeId: prizeId,
@@ -64,6 +69,9 @@ export async function POST(request: NextRequest) {
       };
 
       saveLotteryState(state);
+
+      broadcastReset();
+      broadcastStateUpdate(getFullState());
 
       return NextResponse.json({
         ...state,

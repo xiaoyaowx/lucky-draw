@@ -9,6 +9,7 @@ interface Prize {
   quantity: number;
   color: string;
   sponsor: string;
+  image?: string;
 }
 
 interface Round {
@@ -56,6 +57,7 @@ interface DisplayState {
   winnersByPrize: Record<string, WinnerInfo>;
   numberPool: string[];
   numbersPerRow: number;
+  rollingPool?: string[];
   fontSizes?: FontSizeConfig;
   displaySettings?: DisplaySettings;
   fontColors?: FontColorConfig;
@@ -144,7 +146,7 @@ export default function DisplayPage() {
       case 'state_update': {
         const newState = message.payload as DisplayState;
         setState(newState);
-        poolRef.current = newState.numberPool || [];
+        poolRef.current = newState.rollingPool || newState.numberPool || [];
         const fontSize = newState.fontSizes?.numberCard || 38;
         poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize);
 
@@ -326,52 +328,59 @@ export default function DisplayPage() {
       ) : (
       <div className="main-display">
         {currentPrize ? (
-          <div className="prize-info">
-            <h1
-              className="prize-level-title"
-              style={{
-                color: currentPrize.color,
-                fontSize: `${state?.fontSizes?.prizeLevel || 56}px`
-              }}
-            >
-              🎊 {currentPrize.level} 🎊
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '15px' }}>
-              <div
-                className="prize-name"
+          <div className={`prize-info ${currentPrize.image ? 'prize-info-with-image' : ''}`}>
+            {currentPrize.image && (
+              <div className="prize-image">
+                <img src={currentPrize.image} alt={currentPrize.name} />
+              </div>
+            )}
+            <div className="prize-text">
+              <h1
+                className="prize-level-title"
                 style={{
-                  fontSize: `${state?.fontSizes?.prizeName || 42}px`,
-                  color: fontColors.prizeName
+                  color: currentPrize.color,
+                  fontSize: `${state?.fontSizes?.prizeLevel || 56}px`
                 }}
               >
-                {currentPrize.name}
-              </div>
-
-              {showQuantity && (
+                🎊 {currentPrize.level} 🎊
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '15px' }}>
                 <div
-                  className="prize-quantity"
+                  className="prize-name"
                   style={{
-                    fontSize: `${(state?.fontSizes?.prizeName || 42) * 0.7}px`,
-                    color: fontColors.prizeName,
-                    opacity: 0.9,
+                    fontSize: `${state?.fontSizes?.prizeName || 42}px`,
+                    color: fontColors.prizeName
                   }}
                 >
-                  ×{currentPrize.quantity}
+                  {currentPrize.name}
+                </div>
+
+                {showQuantity && (
+                  <div
+                    className="prize-quantity"
+                    style={{
+                      fontSize: `${(state?.fontSizes?.prizeName || 42) * 0.7}px`,
+                      color: fontColors.prizeName,
+                      opacity: 0.9,
+                    }}
+                  >
+                    ×{currentPrize.quantity}
+                  </div>
+                )}
+              </div>
+
+              {showSponsor && (
+                <div
+                  className="prize-sponsor"
+                  style={{
+                    fontSize: `${state?.fontSizes?.sponsor || 28}px`,
+                    color: fontColors.sponsor
+                  }}
+                >
+                  （{currentPrize.sponsor}）
                 </div>
               )}
             </div>
-
-            {showSponsor && (
-              <div
-                className="prize-sponsor"
-                style={{
-                  fontSize: `${state?.fontSizes?.sponsor || 28}px`,
-                  color: fontColors.sponsor
-                }}
-              >
-                （{currentPrize.sponsor}）
-              </div>
-            )}
           </div>
         ) : (
           <h1>Lucky Draw</h1>

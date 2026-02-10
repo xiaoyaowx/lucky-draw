@@ -7,6 +7,8 @@ import {
   getPrizesData,
   getInitialPrizeRemaining,
 } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 自动生成号码池
 export async function POST(request: NextRequest) {
@@ -48,6 +50,8 @@ export async function POST(request: NextRequest) {
       allWinners: [] as string[],
     };
     saveLotteryState(state);
+
+    broadcastStateUpdate(getFullState());
 
     return NextResponse.json({
       numberPool,

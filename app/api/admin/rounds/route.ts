@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrizesData, savePrizesData, Round } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 获取所有轮次
 export async function GET() {
@@ -34,6 +36,8 @@ export async function POST(request: NextRequest) {
 
     data.rounds.push(newRound);
     savePrizesData(data);
+
+    broadcastStateUpdate(getFullState());
 
     return NextResponse.json({ round: newRound });
   } catch (error) {

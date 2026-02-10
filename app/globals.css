@@ -73,6 +73,37 @@ body {
   gap: 10px;
 }
 
+.prize-info-with-image {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+
+.prize-image {
+  width: 220px;
+  height: 160px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.35);
+}
+
+.prize-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.prize-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
 .prize-level-title {
   font-weight: 900;
   text-shadow: 0 0 20px currentColor, 0 0 40px currentColor, 0 4px 10px rgba(0, 0, 0, 0.5);
@@ -933,4 +964,67 @@ body {
 
 .control-section .btns button.stop:hover:not(:disabled) {
   background: linear-gradient(135deg, #ff6347, #ff3333);
+}
+
+/* 图片上传拖拽区域 */
+.upload-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 24px 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-dropzone:hover {
+  border-color: rgba(255, 215, 0, 0.35);
+  background: rgba(255, 215, 0, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.upload-dropzone.dragover {
+  border-color: rgba(255, 215, 0, 0.6);
+  background: rgba(255, 215, 0, 0.08);
+  color: #ffd700;
+}
+
+.upload-dropzone.uploading {
+  pointer-events: none;
+  color: rgba(255, 215, 0, 0.8);
+}
+
+.upload-spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 图片预览 */
+.upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.upload-preview img {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.upload-preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }

@@ -1,0 +1,12 @@
+node_modules
+.next
+.deploy
+.git
+.claude
+dist
+*.md
+.dockerignore
+Dockerfile
+docker-compose.yml
+nginx.conf
+scripts

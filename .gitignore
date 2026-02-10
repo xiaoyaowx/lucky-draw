@@ -48,3 +48,8 @@ next-env.d.ts
 # OS
 Thumbs.db
 .github/
+public/prizes/*
+!public/prizes/.gitkeep
+docker-compose.yml
+docker-pull.sh
+docker-push.bat

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPrizesData, savePrizesData } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 修改轮次
 export async function PUT(
@@ -28,6 +30,8 @@ export async function PUT(
     }
     savePrizesData(data);
 
+    broadcastStateUpdate(getFullState());
+
     return NextResponse.json({ round: data.rounds[roundIndex] });
   } catch (error) {
     console.error('Error:', error);
@@ -53,6 +57,8 @@ export async function DELETE(
 
     data.rounds.splice(roundIndex, 1);
     savePrizesData(data);
+
+    broadcastStateUpdate(getFullState());
 
     return NextResponse.json({ success: true });
   } catch (error) {

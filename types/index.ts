@@ -10,6 +10,7 @@ export interface Prize {
   quantity: number;
   color: string;
   sponsor: string;
+  image?: string;
 }
 
 // 轮次
@@ -106,6 +107,7 @@ export interface PrizeCreateRequest {
   quantity: number;
   color: string;
   sponsor: string;
+  image?: string;
 }
 
 export interface RoundCreateRequest {

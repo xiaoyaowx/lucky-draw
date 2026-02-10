@@ -9,6 +9,7 @@ import {
 } from '@/lib/lottery';
 import { getLivePool, removeFromLivePool } from '@/lib/live-pool';
 import { broadcastRollingStop, broadcastStateUpdate } from '@/lib/ws-manager';
+import { getFullState } from '@/lib/full-state';
 
 export async function POST(request: NextRequest) {
   try {
@@ -162,23 +163,14 @@ export async function POST(request: NextRequest) {
     const newDisplayState = updateDisplayState({
       isRolling: false,
       winners: winningNumbers,
+      rollingPool: undefined,
     });
 
     // 广播停止消息
     broadcastRollingStop(winningNumbers);
 
     // 广播完整状态
-    const fullState = {
-      ...newDisplayState,
-      rounds: prizesData.rounds,
-      prizeRemaining: lotteryState.prizeRemaining,
-      winnersByPrize: lotteryState.winnersByPrize,
-      numberPool: lotteryState.numberPool,
-      numbersPerRow: config.numbersPerRow || 10,
-      fontSizes: config.fontSizes || { prizeLevel: 56, prizeName: 42, sponsor: 28, numberCard: 38 },
-      displaySettings: config.displaySettings || { showQuantity: true, showSponsor: true, showNumberBorder: true, maskPhone: false },
-      fontColors: config.fontColors || { prizeName: '#ffffff', sponsor: '#eeeeee', numberCard: '#ffd700' },
-    };
+    const fullState = getFullState(newDisplayState);
     broadcastStateUpdate(fullState);
 
     return NextResponse.json({

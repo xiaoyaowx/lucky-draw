@@ -60,11 +60,21 @@ app.prepare().then(() => {
       }
 
       // 处理外部 public 目录的静态文件（排除 _next 和 api 路径）
+      // 注意：这里必须防止路径穿越（例如 /../secret.txt）。
       if (PUBLIC_DIR && !pathname.startsWith('/_next') && !pathname.startsWith('/api') && pathname !== '/') {
-        const filePath = path.join(PUBLIC_DIR, pathname);
+        const publicRoot = path.resolve(PUBLIC_DIR);
+        const safePath = path.resolve(publicRoot, `.${pathname}`);
+
+        // 若不在 publicRoot 下，则拒绝（防止读取任意文件）
+        if (!safePath.startsWith(publicRoot + path.sep)) {
+          res.statusCode = 400;
+          res.end('Bad Request');
+          return;
+        }
+
         try {
-          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-            const ext = path.extname(filePath).toLowerCase();
+          if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+            const ext = path.extname(safePath).toLowerCase();
             const mimeTypes: Record<string, string> = {
               '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
               '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
@@ -72,7 +82,7 @@ app.prepare().then(() => {
               '.webp': 'image/webp', '.woff': 'font/woff', '.woff2': 'font/woff2',
             };
             res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-            fs.createReadStream(filePath).pipe(res);
+            fs.createReadStream(safePath).pipe(res);
             return;
           }
         } catch {

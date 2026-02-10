@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getLivePool, registerEmployee, setLivePoolOpen, clearLivePool } from '@/lib/live-pool';
 import { getConfig } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // GET: 获取登记状态和列表
 export async function GET() {
@@ -64,6 +66,10 @@ export async function POST(request: NextRequest) {
     }
 
     const result = registerEmployee(normalized);
+    if (result.success) {
+      // live pool 变化后，让大屏/控制台同步状态
+      broadcastStateUpdate(getFullState());
+    }
     return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (error) {
     console.error('Error:', error);
@@ -80,6 +86,7 @@ export async function PUT(request: NextRequest) {
     }
 
     setLivePoolOpen(isOpen);
+    broadcastStateUpdate(getFullState());
     return NextResponse.json({ success: true, isOpen });
   } catch (error) {
     console.error('Error:', error);
@@ -91,6 +98,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE() {
   try {
     clearLivePool();
+    broadcastStateUpdate(getFullState());
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error:', error);
