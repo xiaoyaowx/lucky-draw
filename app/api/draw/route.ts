@@ -6,7 +6,7 @@ import {
   getConfig,
   saveConfig,
 } from '@/lib/lottery';
-import { getLivePool, removeFromLivePool } from '@/lib/live-pool';
+import { getLivePool } from '@/lib/live-pool';
 
 interface DrawRequest {
   prizeId: string;
@@ -128,13 +128,6 @@ export async function POST(request: NextRequest) {
         delete config.calibration;
       }
       saveConfig(config);
-    }
-
-    // 从原始号码池中移除中奖号码
-    if (targetRound?.poolType === 'live') {
-      removeFromLivePool(winningNumbers);
-    } else {
-      state.numberPool = state.numberPool.filter(n => !winningNumbers.includes(n));
     }
 
     // 更新中奖记录

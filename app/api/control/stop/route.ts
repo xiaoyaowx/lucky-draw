@@ -7,7 +7,7 @@ import {
   getConfig,
   saveConfig,
 } from '@/lib/lottery';
-import { getLivePool, removeFromLivePool } from '@/lib/live-pool';
+import { getLivePool } from '@/lib/live-pool';
 import { broadcastRollingStop, broadcastStateUpdate } from '@/lib/ws-manager';
 import { getFullState } from '@/lib/full-state';
 
@@ -76,7 +76,9 @@ export async function POST(request: NextRequest) {
     const actualCount = Math.min(count, remaining, availablePool.length);
 
     if (actualCount === 0) {
-      updateDisplayState({ isRolling: false });
+      const newDisplayState = updateDisplayState({ isRolling: false, winners: [], rollingPool: undefined });
+      broadcastRollingStop([]);
+      broadcastStateUpdate(getFullState(newDisplayState));
       return NextResponse.json({ error: 'No numbers available' }, { status: 400 });
     }
 
@@ -135,12 +137,6 @@ export async function POST(request: NextRequest) {
       saveConfig(config);
     }
 
-    // 从实时注册池中移除中奖号码（实时池需要物理移除，因为没有 allWinners 过滤）
-    if (isLivePool) {
-      removeFromLivePool(winningNumbers);
-    }
-    // preset 池不修改 numberPool，依赖 allWinners 排除已中奖者
-
     // 更新中奖记录
     if (!lotteryState.winnersByPrize[prizeId]) {
       lotteryState.winnersByPrize[prizeId] = {
@@ -178,6 +174,7 @@ export async function POST(request: NextRequest) {
       prizeRemaining: lotteryState.prizeRemaining,
       winnersByPrize: lotteryState.winnersByPrize,
       numberPool: lotteryState.numberPool,
+      availablePoolSize: fullState.availablePoolSize,
     });
   } catch (error) {
     console.error('Error:', error);

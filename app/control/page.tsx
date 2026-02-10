@@ -15,6 +15,7 @@ interface Round {
   id: number;
   name: string;
   prizes: Prize[];
+  poolType?: 'preset' | 'live';
 }
 
 interface WinnerInfo {
@@ -34,6 +35,8 @@ interface ControlState {
   prizeRemaining: Record<string, number>;
   winnersByPrize: Record<string, WinnerInfo>;
   numberPool: string[];
+  livePoolCount: number;
+  availablePoolSize: number;
   allowRepeatWin?: boolean;
 }
 
@@ -87,18 +90,20 @@ export default function ControlPage() {
     });
   };
 
-  const handleRoundChange = (roundId: number) => {
+  const handleRoundChange = async (roundId: number) => {
     if (isRolling) return;
     setCurrentRoundId(roundId);
     setCurrentPrizeId(null);
-    updateState({ currentRoundId: roundId, currentPrizeId: null });
+    await updateState({ currentRoundId: roundId, currentPrizeId: null });
+    fetchState();
   };
 
   const handlePrizeChange = (prizeId: string) => {
     if (isRolling) return;
     setCurrentPrizeId(prizeId);
     const remaining = state?.prizeRemaining[prizeId] || 0;
-    const newCount = Math.min(remaining, 30);
+    const available = state?.availablePoolSize ?? remaining;
+    const newCount = Math.min(remaining, available, 30);
     setDrawCount(newCount);
     updateState({ currentPrizeId: prizeId, drawCount: newCount });
   };
@@ -129,6 +134,7 @@ export default function ControlPage() {
     setIsRolling(false);
     if (!res.ok) {
       alert(data.error || '停止抽奖失败');
+      fetchState();
       return;
     }
     if (state) {
@@ -137,6 +143,7 @@ export default function ControlPage() {
         prizeRemaining: data.prizeRemaining,
         winnersByPrize: data.winnersByPrize,
         numberPool: data.numberPool || state.numberPool,
+        availablePoolSize: data.availablePoolSize ?? state.availablePoolSize,
       });
       // 自动调整抽取数量，避免超出剩余
       if (currentPrizeId) {
@@ -310,19 +317,21 @@ export default function ControlPage() {
           <div className="btns">
             {(() => {
               const remaining = state.prizeRemaining[currentPrize.id] || 0;
+              const available = state.availablePoolSize ?? remaining;
+              const maxDraw = Math.min(remaining, available);
               const baseOptions = [1, 5, 10, 15, 20, 30];
               // 如果剩余数量大于0且不在基础选项中，添加它
-              const options = (remaining > 0 && !baseOptions.includes(remaining))
-                ? [...baseOptions, remaining].sort((a, b) => a - b)
+              const options = (maxDraw > 0 && !baseOptions.includes(maxDraw))
+                ? [...baseOptions, maxDraw].sort((a, b) => a - b)
                 : baseOptions;
               return options.map(n => (
                 <button
                   key={n}
                   className={drawCount === n ? 'active' : ''}
-                  disabled={n > remaining || isRolling}
+                  disabled={n > maxDraw || isRolling}
                   onClick={() => handleCountChange(n)}
                 >
-                  {n === remaining && !baseOptions.includes(remaining) ? `${n}(全部)` : n}
+                  {n === maxDraw && !baseOptions.includes(maxDraw) ? `${n}(全部)` : n}
                 </button>
               ));
             })()}
@@ -384,7 +393,7 @@ export default function ControlPage() {
           <button
             className={`action ${isRolling ? 'stop' : 'start'}`}
             onClick={() => isRolling ? handleStop() : handleStart()}
-            disabled={showQRCode || !currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0}
+            disabled={showQRCode || !currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0 || (!isRolling && state.availablePoolSize === 0)}
           >
             {isRolling ? '停止抽奖' : '开始抽奖'}
           </button>
@@ -400,7 +409,7 @@ export default function ControlPage() {
 
       <div className="control-section">
         <h3>状态</h3>
-        <p>剩余号码: {state.allowRepeatWin ? state.numberPool.length : `${state.numberPool.length - totalWinners} / ${state.numberPool.length}`}</p>
+        <p>可用号码: {state.availablePoolSize}{currentRound?.poolType === 'live' ? ` (签到池 ${state.livePoolCount} 人)` : ` / ${state.numberPool.length}`}</p>
       </div>
 
       <div className="control-section winners">

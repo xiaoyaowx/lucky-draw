@@ -203,7 +203,7 @@ export default function DisplayPage() {
         setState(data);
         poolRef.current = data.numberPool || [];
         const fontSize = data.fontSizes?.numberCard || 38;
-        poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize);        if (data.showQRCode) {
+        poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize); if (data.showQRCode) {
           setShowQRCode(true);
           setQRCodeUrl(`${window.location.origin}/register`);
           setQRCodeMessage(data.qrCodeMessage || '');
@@ -326,133 +326,133 @@ export default function DisplayPage() {
           </div>
         </div>
       ) : (
-      <div className="main-display">
-        {currentPrize ? (
-          <div className={`prize-info ${currentPrize.image ? 'prize-info-with-image' : ''}`}>
-            {currentPrize.image && (
-              <div className="prize-image">
-                <img src={currentPrize.image} alt={currentPrize.name} />
-              </div>
-            )}
-            <div className="prize-text">
-              <h1
-                className="prize-level-title"
-                style={{
-                  color: currentPrize.color,
-                  fontSize: `${state?.fontSizes?.prizeLevel || 56}px`
-                }}
-              >
-                🎊 {currentPrize.level} 🎊
-              </h1>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '15px' }}>
-                <div
-                  className="prize-name"
+        <div className="main-display">
+          {currentPrize ? (
+            <div className={`prize-info ${currentPrize.image ? 'prize-info-with-image' : ''}`}>
+              {currentPrize.image && (
+                <div className="prize-image">
+                  <img src={currentPrize.image} alt={currentPrize.name} />
+                </div>
+              )}
+              <div className="prize-text">
+                <h1
+                  className="prize-level-title"
                   style={{
-                    fontSize: `${state?.fontSizes?.prizeName || 42}px`,
-                    color: fontColors.prizeName
+                    color: currentPrize.color,
+                    fontSize: `${state?.fontSizes?.prizeLevel || 56}px`
                   }}
                 >
-                  {currentPrize.name}
-                </div>
-
-                {showQuantity && (
+                  🎊 {currentPrize.level} 🎊
+                </h1>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '15px' }}>
                   <div
-                    className="prize-quantity"
+                    className="prize-name"
                     style={{
-                      fontSize: `${(state?.fontSizes?.prizeName || 42) * 0.7}px`,
-                      color: fontColors.prizeName,
-                      opacity: 0.9,
+                      fontSize: `${state?.fontSizes?.prizeName || 42}px`,
+                      color: fontColors.prizeName
                     }}
                   >
-                    ×{currentPrize.quantity}
+                    {currentPrize.name}
+                  </div>
+
+                  {showQuantity && (
+                    <div
+                      className="prize-quantity"
+                      style={{
+                        fontSize: `${(state?.fontSizes?.prizeName || 42) * 0.7}px`,
+                        color: fontColors.prizeName,
+                        opacity: 0.9,
+                      }}
+                    >
+                      ×{currentPrize.quantity}
+                    </div>
+                  )}
+                </div>
+
+                {showSponsor && (
+                  <div
+                    className="prize-sponsor"
+                    style={{
+                      fontSize: `${state?.fontSizes?.sponsor || 28}px`,
+                      color: fontColors.sponsor
+                    }}
+                  >
+                    （{currentPrize.sponsor}）
                   </div>
                 )}
               </div>
+            </div>
+          ) : (
+            <h1></h1>
+          )}
 
-              {showSponsor && (
+          <div className="number-display">
+            {displayNumbers.length > 0 ? (() => {
+              // 动态计算样式
+              const numFontSize = state?.fontSizes?.numberCard || 38;
+              const borderWidth = Math.max(2, numFontSize * 0.08);
+              const showBorder = state?.displaySettings?.showNumberBorder ?? true;
+              const maskPhone = state?.displaySettings?.maskPhone ?? false;
+              const maskNum = (n: string) =>
+                maskPhone && n.length === 11 ? n.slice(0, 3) + '****' + n.slice(7) : n;
+              const displayTexts = displayNumbers.map(maskNum);
+
+              // 使用整个池的最大宽度来稳定卡片尺寸，避免滚动时布局抖动
+              const cardPadding = numFontSize * 0.8;
+              const poolBasedWidth = poolMaxWidthRef.current + cardPadding;
+              // 同时也考虑当前显示文本（停止后中奖者可能不在池中了）
+              const currentMaxWidth = Math.max(
+                ...displayTexts.map(t => getTextVisualWidth(t, numFontSize)), 0
+              ) + cardPadding;
+              const cardWidth = Math.max(numFontSize * 2.8, poolBasedWidth, currentMaxWidth);
+              const cardHeight = numFontSize * 1.8;
+              const gap = 15;
+              const maxWidth = (state?.numbersPerRow || 10) * (cardWidth + gap);
+
+              return (
                 <div
-                  className="prize-sponsor"
+                  className="numbers-grid"
                   style={{
-                    fontSize: `${state?.fontSizes?.sponsor || 28}px`,
-                    color: fontColors.sponsor
+                    maxWidth: `${maxWidth}px`,
+                    gap: `${gap}px`
                   }}
                 >
-                  （{currentPrize.sponsor}）
+                  {displayNumbers.map((num, i) => {
+                    const text = displayTexts[i];
+                    // 文字过长时自动缩小字号以适配卡片
+                    const textWidth = getTextVisualWidth(text, numFontSize);
+                    const availableWidth = cardWidth - cardPadding;
+                    const scaledFontSize = textWidth > availableWidth
+                      ? numFontSize * (availableWidth / textWidth)
+                      : numFontSize;
+                    return (
+                      <div
+                        key={i}
+                        className={`number-card ${!isRolling ? 'winner' : ''}`}
+                        style={{
+                          fontSize: `${scaledFontSize}px`,
+                          width: `${cardWidth}px`,
+                          height: `${cardHeight}px`,
+                          borderWidth: showBorder ? `${borderWidth}px` : 0,
+                          color: fontColors.numberCard,
+                          borderColor: showBorder ? fontColors.numberCard : 'transparent',
+                          background: showBorder ? undefined : 'transparent',
+                          boxShadow: showBorder ? undefined : 'none',
+                        }}
+                      >
+                        {text}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <h1>Lucky Draw</h1>
-        )}
-
-        <div className="number-display">
-          {displayNumbers.length > 0 ? (() => {
-            // 动态计算样式
-            const numFontSize = state?.fontSizes?.numberCard || 38;
-            const borderWidth = Math.max(2, numFontSize * 0.08);
-            const showBorder = state?.displaySettings?.showNumberBorder ?? true;
-            const maskPhone = state?.displaySettings?.maskPhone ?? false;
-            const maskNum = (n: string) =>
-              maskPhone && n.length === 11 ? n.slice(0, 3) + '****' + n.slice(7) : n;
-            const displayTexts = displayNumbers.map(maskNum);
-
-            // 使用整个池的最大宽度来稳定卡片尺寸，避免滚动时布局抖动
-            const cardPadding = numFontSize * 0.8;
-            const poolBasedWidth = poolMaxWidthRef.current + cardPadding;
-            // 同时也考虑当前显示文本（停止后中奖者可能不在池中了）
-            const currentMaxWidth = Math.max(
-              ...displayTexts.map(t => getTextVisualWidth(t, numFontSize)), 0
-            ) + cardPadding;
-            const cardWidth = Math.max(numFontSize * 2.8, poolBasedWidth, currentMaxWidth);
-            const cardHeight = numFontSize * 1.8;
-            const gap = 15;
-            const maxWidth = (state?.numbersPerRow || 10) * (cardWidth + gap);
-
-            return (
-              <div
-                className="numbers-grid"
-                style={{
-                  maxWidth: `${maxWidth}px`,
-                  gap: `${gap}px`
-                }}
-              >
-                {displayNumbers.map((num, i) => {
-                  const text = displayTexts[i];
-                  // 文字过长时自动缩小字号以适配卡片
-                  const textWidth = getTextVisualWidth(text, numFontSize);
-                  const availableWidth = cardWidth - cardPadding;
-                  const scaledFontSize = textWidth > availableWidth
-                    ? numFontSize * (availableWidth / textWidth)
-                    : numFontSize;
-                  return (
-                    <div
-                      key={i}
-                      className={`number-card ${!isRolling ? 'winner' : ''}`}
-                      style={{
-                        fontSize: `${scaledFontSize}px`,
-                        width: `${cardWidth}px`,
-                        height: `${cardHeight}px`,
-                        borderWidth: showBorder ? `${borderWidth}px` : 0,
-                        color: fontColors.numberCard,
-                        borderColor: showBorder ? fontColors.numberCard : 'transparent',
-                        background: showBorder ? undefined : 'transparent',
-                        boxShadow: showBorder ? undefined : 'none',
-                      }}
-                    >
-                      {text}
-                    </div>
-                  );
-                })}
+              );
+            })() : (
+              <div className="placeholder">
+                {currentPrize ? '等待抽奖...' : '请在控制台选择奖品'}
               </div>
-            );
-          })() : (
-            <div className="placeholder">
-              {currentPrize ? '等待抽奖...' : '请在控制台选择奖品'}
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
       )}
     </div>
   );

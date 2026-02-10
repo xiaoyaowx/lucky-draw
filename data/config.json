@@ -31,6 +31,6 @@
   },
   "registerSettings": {
     "length": 4,
-    "allowLetters": false
+    "allowLetters": true
   }
 }
