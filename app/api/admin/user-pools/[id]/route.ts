@@ -1,0 +1,129 @@
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  DEFAULT_USER_POOL_ID,
+  getUserPools,
+  LIVE_USER_POOL_ID,
+  normalizePoolNumbers,
+  resetLotteryRecords,
+  saveUserPools,
+} from '@/lib/user-pools';
+import { generateNumberPoolFromConfig, getConfig, getPrizesData, saveConfig, savePrizesData } from '@/lib/lottery';
+import { getFullState } from '@/lib/full-state';
+import { broadcastStateUpdate } from '@/lib/ws-manager';
+
+function arraysEqual(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index]);
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    if (id === LIVE_USER_POOL_ID) {
+      return NextResponse.json({ error: 'Live pool cannot be edited here' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const pools = getUserPools();
+    const index = pools.findIndex(pool => pool.id === id);
+    if (index === -1) {
+      return NextResponse.json({ error: 'User pool not found' }, { status: 404 });
+    }
+
+    const nextPool = { ...pools[index] };
+    let numbersChanged = false;
+
+    if (typeof body.name === 'string' && body.name.trim()) {
+      nextPool.name = body.name.trim();
+    }
+
+    if (body.generateConfig) {
+      const generated = generateNumberPoolFromConfig({
+        type: 'auto',
+        start: body.generateConfig.start,
+        end: body.generateConfig.end,
+        excludeContains: Array.isArray(body.generateConfig.excludeContains)
+          ? body.generateConfig.excludeContains
+          : [],
+        excludeExact: Array.isArray(body.generateConfig.excludeExact)
+          ? body.generateConfig.excludeExact
+          : [],
+      });
+      numbersChanged = !arraysEqual(nextPool.numbers, generated);
+      nextPool.numbers = generated;
+
+      if (id === DEFAULT_USER_POOL_ID) {
+        const config = getConfig();
+        config.numberPoolConfig = {
+          ...config.numberPoolConfig,
+          type: 'auto',
+          start: body.generateConfig.start,
+          end: body.generateConfig.end,
+          excludeContains: Array.isArray(body.generateConfig.excludeContains)
+            ? body.generateConfig.excludeContains
+            : [],
+          excludeExact: Array.isArray(body.generateConfig.excludeExact)
+            ? body.generateConfig.excludeExact
+            : [],
+        };
+        delete config.numberPoolConfig.excludePatterns;
+        saveConfig(config);
+      }
+    } else if (Array.isArray(body.numbers)) {
+      const nextNumbers = normalizePoolNumbers(body.numbers);
+      numbersChanged = !arraysEqual(nextPool.numbers, nextNumbers);
+      nextPool.numbers = nextNumbers;
+    }
+
+    nextPool.updatedAt = Date.now();
+    pools[index] = nextPool;
+    saveUserPools(pools);
+
+    if (numbersChanged) {
+      resetLotteryRecords();
+    }
+
+    broadcastStateUpdate(getFullState());
+
+    return NextResponse.json({ pool: nextPool, reset: numbersChanged });
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Failed to update user pool' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { id } = await params;
+    if (id === DEFAULT_USER_POOL_ID || id === LIVE_USER_POOL_ID) {
+      return NextResponse.json({ error: 'This pool cannot be deleted' }, { status: 400 });
+    }
+
+    const pools = getUserPools();
+    const nextPools = pools.filter(pool => pool.id !== id);
+    if (nextPools.length === pools.length) {
+      return NextResponse.json({ error: 'User pool not found' }, { status: 404 });
+    }
+
+    saveUserPools(nextPools);
+
+    const prizesData = getPrizesData();
+    prizesData.rounds = prizesData.rounds.map(round => ({
+      ...round,
+      poolBindings: round.poolBindings?.filter(binding => binding.poolId !== id),
+    }));
+    savePrizesData(prizesData);
+    resetLotteryRecords();
+    broadcastStateUpdate(getFullState());
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error:', error);
+    return NextResponse.json({ error: 'Failed to delete user pool' }, { status: 500 });
+  }
+}

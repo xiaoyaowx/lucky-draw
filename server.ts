@@ -1,4 +1,5 @@
 import { createServer } from 'http';
+import { createServer as createNetServer } from 'net';
 import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -7,14 +8,46 @@ import path from 'path';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = 'localhost';
-const port = parseInt(process.env.PORT || '3000', 10);
+const requestedPort = parsePort(process.env.PORT, 3000);
 
 // 外部 public 目录（打包后使用）
 const PUBLIC_DIR = process.env.PUBLIC_DIR || path.join(process.cwd(), 'public');
 
-// 禁用 turbopack，使用 webpack 以确保兼容性
-const app = next({ dev, hostname, port, turbo: false });
-const handle = app.getRequestHandler();
+function parsePort(value: string | undefined, fallback: number): number {
+  const port = Number.parseInt(value || `${fallback}`, 10);
+  return Number.isInteger(port) && port > 0 && port <= 65535 ? port : fallback;
+}
+
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = createNetServer();
+
+    tester.once('error', () => {
+      resolve(false);
+    });
+
+    tester.once('listening', () => {
+      tester.close(() => resolve(true));
+    });
+
+    tester.listen(port);
+  });
+}
+
+async function findAvailablePort(startPort: number): Promise<number> {
+  for (let port = startPort; port <= 65535; port += 1) {
+    if (await isPortAvailable(port)) {
+      if (port !== startPort) {
+        console.warn(`> Port ${startPort} is in use, using ${port} instead`);
+      }
+      return port;
+    }
+
+    console.warn(`> Port ${port} is in use, trying ${port + 1}`);
+  }
+
+  throw new Error(`No available port found from ${startPort} to 65535`);
+}
 
 // WebSocket 连接存储
 const clients = new Set<WebSocket>();
@@ -35,7 +68,16 @@ declare global {
 }
 global.wsBroadcast = broadcast;
 
-app.prepare().then(() => {
+async function start() {
+  const port = await findAvailablePort(requestedPort);
+  process.env.PORT = String(port);
+
+  // 禁用 turbopack，使用 webpack 以确保兼容性
+  const app = next({ dev, hostname, port, turbo: false });
+  const handle = app.getRequestHandler();
+
+  await app.prepare();
+
   const server = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url!, true);
@@ -137,4 +179,9 @@ app.prepare().then(() => {
     console.log(`> Ready on http://${hostname}:${port}`);
     console.log(`> WebSocket on ws://${hostname}:${port}/ws`);
   });
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });

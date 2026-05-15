@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { saveLotteryState, getPrizesData, getInitialPrizeRemaining } from '@/lib/lottery';
+import { DEFAULT_USER_POOL_ID, getUserPools, normalizePoolNumbers, resetLotteryRecords, saveUserPools } from '@/lib/user-pools';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
 
@@ -29,17 +29,25 @@ export async function POST(request: NextRequest) {
     }
 
     // 去重
-    const uniqueNumbers = [...new Set(numbers)];
+    const uniqueNumbers = normalizePoolNumbers(numbers);
 
-    // 替换号码池并清除旧的抽奖记录
-    const prizesData = getPrizesData();
-    const state = {
-      numberPool: uniqueNumbers,
-      prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
-      winnersByPrize: {},
-      allWinners: [] as string[],
-    };
-    saveLotteryState(state);
+    // 替换默认用户池并清除旧的抽奖记录
+    const pools = getUserPools();
+    const index = pools.findIndex(pool => pool.id === DEFAULT_USER_POOL_ID);
+    const now = Date.now();
+    if (index === -1) {
+      pools.unshift({
+        id: DEFAULT_USER_POOL_ID,
+        name: '默认预设池',
+        numbers: uniqueNumbers,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      pools[index] = { ...pools[index], numbers: uniqueNumbers, updatedAt: now };
+    }
+    saveUserPools(pools);
+    resetLotteryRecords();
 
     broadcastStateUpdate(getFullState());
 

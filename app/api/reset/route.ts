@@ -5,6 +5,7 @@ import {
   saveLotteryState,
   getInitialPrizeRemaining,
 } from '@/lib/lottery';
+import { DEFAULT_USER_POOL_ID, getUserPools } from '@/lib/user-pools';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate, broadcastReset } from '@/lib/ws-manager';
 
@@ -60,9 +61,10 @@ export async function POST(request: NextRequest) {
     } else {
       // 全部重置 — 只清除中奖记录，numberPool 保持不变
       const currentState = getLotteryState();
+      const defaultPool = getUserPools().find(pool => pool.id === DEFAULT_USER_POOL_ID);
 
       const state = {
-        numberPool: currentState.numberPool,
+        numberPool: defaultPool?.numbers || currentState.numberPool,
         prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
         winnersByPrize: {},
         allWinners: [],

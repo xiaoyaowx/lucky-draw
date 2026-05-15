@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLotteryState, saveLotteryState, getPrizesData, getInitialPrizeRemaining } from '@/lib/lottery';
+import { getUserPools, DEFAULT_USER_POOL_ID, normalizePoolNumbers, resetLotteryRecords, saveUserPools } from '@/lib/user-pools';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
 
 // 获取号码池
 export async function GET() {
   try {
-    const state = getLotteryState();
+    const defaultPool = getUserPools().find(pool => pool.id === DEFAULT_USER_POOL_ID);
+    const numberPool = defaultPool?.numbers || [];
     return NextResponse.json({
-      numberPool: state.numberPool,
-      count: state.numberPool.length,
+      numberPool,
+      count: numberPool.length,
     });
   } catch (error) {
     console.error('Error:', error);
@@ -26,23 +27,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid numbers format' }, { status: 400 });
     }
 
-    const numberPool = numbers.map((n: unknown) => String(n).trim()).filter(Boolean);
+    const numberPool = normalizePoolNumbers(numbers);
 
-    // 替换号码池并清除旧的抽奖记录
-    const prizesData = getPrizesData();
-    const state = {
-      numberPool,
-      prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
-      winnersByPrize: {},
-      allWinners: [] as string[],
-    };
-    saveLotteryState(state);
+    // 替换默认号码池并清除旧的抽奖记录
+    const pools = getUserPools();
+    const index = pools.findIndex(pool => pool.id === DEFAULT_USER_POOL_ID);
+    const now = Date.now();
+    if (index === -1) {
+      pools.unshift({
+        id: DEFAULT_USER_POOL_ID,
+        name: '默认预设池',
+        numbers: numberPool,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      pools[index] = { ...pools[index], numbers: numberPool, updatedAt: now };
+    }
+    saveUserPools(pools);
+    resetLotteryRecords();
 
     broadcastStateUpdate(getFullState());
 
     return NextResponse.json({
-      numberPool: state.numberPool,
-      count: state.numberPool.length,
+      numberPool,
+      count: numberPool.length,
     });
   } catch (error) {
     console.error('Error:', error);

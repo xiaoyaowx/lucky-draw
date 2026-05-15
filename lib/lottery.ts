@@ -70,7 +70,13 @@ export interface Round {
   id: number;
   name: string;
   poolType?: 'preset' | 'live';
+  poolBindings?: PoolBinding[];
   prizes: Prize[];
+}
+
+export interface PoolBinding {
+  poolId: string;
+  probability: number;
 }
 
 export interface WinnerInfo {

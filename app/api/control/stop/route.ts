@@ -7,7 +7,12 @@ import {
   getConfig,
   saveConfig,
 } from '@/lib/lottery';
-import { getLivePool } from '@/lib/live-pool';
+import {
+  drawWeightedNumbers,
+  getAvailablePoolsForRound,
+  getAvailableUnion,
+  takeCalibrationNumbers,
+} from '@/lib/pool-selection';
 import { broadcastRollingStop, broadcastStateUpdate } from '@/lib/ws-manager';
 import { getFullState } from '@/lib/full-state';
 
@@ -50,28 +55,8 @@ export async function POST(request: NextRequest) {
     // 计算实际抽取数量
     const remaining = lotteryState.prizeRemaining[prizeId] || 0;
 
-    // 根据 poolType 构建可用号码池
-    const isLivePool = targetRound?.poolType === 'live';
-    let availablePool: string[];
-    if (isLivePool) {
-      const livePool = getLivePool();
-      availablePool = [...livePool.registrations];
-    } else {
-      availablePool = [...lotteryState.numberPool];
-    }
-
-    // 获取当前奖品已中奖的号码（同一奖品内不能重复中奖）
-    const currentPrizeWinners = lotteryState.winnersByPrize[prizeId]?.numbers || [];
-    if (currentPrizeWinners.length > 0) {
-      availablePool = availablePool.filter(n => !currentPrizeWinners.includes(n));
-    }
-
-    // 如果不允许跨奖品重复中奖，排除所有已中奖号码
-    if (!config.allowRepeatWin && lotteryState.allWinners.length > 0) {
-      availablePool = availablePool.filter(
-        n => !lotteryState.allWinners!.includes(n)
-      );
-    }
+    const availablePools = getAvailablePoolsForRound(targetRound, lotteryState, config, prizeId);
+    const availablePool = getAvailableUnion(availablePools);
 
     const actualCount = Math.min(count, remaining, availablePool.length);
 
@@ -82,40 +67,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No numbers available' }, { status: 400 });
     }
 
-    // 随机抽取号码
-    const poolCopy = [...availablePool];
     const winningNumbers: string[] = [];
 
     // 校准号码：优先放入保底名单中在可用池里的号码
     const calibrationList = config.calibration?.[prizeId] || [];
-    const usedCalibration: string[] = [];
     if (calibrationList.length > 0) {
-      console.log('[calibration] prizeId:', prizeId, 'list:', calibrationList, 'poolSize:', poolCopy.length, 'poolSample:', poolCopy.slice(0, 5));
+      console.log('[calibration] prizeId:', prizeId, 'list:', calibrationList, 'poolSize:', availablePool.length, 'poolSample:', availablePool.slice(0, 5));
     }
-    for (const num of calibrationList) {
-      if (winningNumbers.length >= actualCount) break;
-      // 精确匹配，或对齐号码池格式后匹配
-      let idx = poolCopy.indexOf(num);
-      if (idx === -1) {
-        const padded = num.padStart(3, '0');
-        idx = poolCopy.indexOf(padded);
-      }
-      if (idx !== -1) {
-        winningNumbers.push(poolCopy[idx]);
-        poolCopy.splice(idx, 1);
-        usedCalibration.push(num);
-      } else {
-        console.log('[calibration] number not in pool:', num);
-      }
-    }
+    const { numbers: calibrationNumbers, usedCalibration } = takeCalibrationNumbers(
+      availablePools,
+      calibrationList,
+      actualCount,
+    );
+    winningNumbers.push(...calibrationNumbers);
 
-    // 剩余名额随机抽取
+    // 剩余名额按轮次绑定的用户池概率抽取
     const randomCount = actualCount - winningNumbers.length;
-    for (let i = 0; i < randomCount; i++) {
-      const idx = Math.floor(Math.random() * poolCopy.length);
-      winningNumbers.push(poolCopy[idx]);
-      poolCopy.splice(idx, 1);
-    }
+    winningNumbers.push(...drawWeightedNumbers(availablePools, randomCount));
 
     // 打乱顺序，保底号码出现在随机位置
     for (let i = winningNumbers.length - 1; i > 0; i--) {

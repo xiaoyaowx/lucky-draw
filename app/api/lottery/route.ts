@@ -3,9 +3,9 @@ import {
   getPrizesData,
   getLotteryState,
   saveLotteryState,
-  generateNumberPool,
   getInitialPrizeRemaining,
 } from '@/lib/lottery';
+import { DEFAULT_USER_POOL_ID, getUserPools } from '@/lib/user-pools';
 
 export async function GET() {
   try {
@@ -14,10 +14,12 @@ export async function GET() {
 
     // 如果号码池为空，初始化
     if (state.numberPool.length === 0) {
+      const defaultPool = getUserPools().find(pool => pool.id === DEFAULT_USER_POOL_ID);
       state = {
-        numberPool: generateNumberPool(),
+        numberPool: defaultPool?.numbers || [],
         prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
         winnersByPrize: {},
+        allWinners: [],
       };
       saveLotteryState(state);
     }
@@ -25,7 +27,7 @@ export async function GET() {
     return NextResponse.json({
       rounds: prizesData.rounds,
       ...state,
-      totalNumbers: generateNumberPool().length,
+      totalNumbers: state.numberPool.length,
     });
   } catch (error) {
     console.error('Error:', error);

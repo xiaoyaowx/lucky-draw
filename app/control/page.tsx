@@ -16,6 +16,20 @@ interface Round {
   name: string;
   prizes: Prize[];
   poolType?: 'preset' | 'live';
+  poolBindings?: PoolBinding[];
+}
+
+interface PoolBinding {
+  poolId: string;
+  probability: number;
+}
+
+interface AvailablePool {
+  poolId: string;
+  name: string;
+  probability: number;
+  count: number;
+  isLive?: boolean;
 }
 
 interface WinnerInfo {
@@ -37,6 +51,8 @@ interface ControlState {
   numberPool: string[];
   livePoolCount: number;
   availablePoolSize: number;
+  currentRoundPoolBindings?: PoolBinding[];
+  availablePools?: AvailablePool[];
   allowRepeatWin?: boolean;
 }
 
@@ -409,7 +425,25 @@ export default function ControlPage() {
 
       <div className="control-section">
         <h3>状态</h3>
-        <p>可用号码: {state.availablePoolSize}{currentRound?.poolType === 'live' ? ` (签到池 ${state.livePoolCount} 人)` : ` / ${state.numberPool.length}`}</p>
+        <p>可用号码: {state.availablePoolSize}</p>
+        {state.availablePools && state.availablePools.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {state.availablePools.map(pool => (
+              <span
+                key={pool.poolId}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.08)',
+                  color: 'rgba(255,255,255,0.75)',
+                  fontSize: 12,
+                }}
+              >
+                {pool.name} {pool.probability}% / {pool.count} 人
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="control-section winners">

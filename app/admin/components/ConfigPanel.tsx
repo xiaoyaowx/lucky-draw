@@ -42,13 +42,26 @@ interface Prize {
   level: string;
   name: string;
   poolType?: 'preset' | 'live';
+  poolBindings?: PoolBinding[];
+}
+
+interface PoolBinding {
+  poolId: string;
+  probability: number;
 }
 
 interface Round {
   id: number;
   name: string;
   poolType?: 'preset' | 'live';
+  poolBindings?: PoolBinding[];
   prizes: Prize[];
+}
+
+interface UserPool {
+  id: string;
+  name: string;
+  numbers: string[];
 }
 
 const DEFAULT_FONT_SIZES: FontSizeConfig = {
@@ -71,6 +84,7 @@ export default function ConfigPanel() {
   const [calNumbers, setCalNumbers] = useState('');
   const [calMessage, setCalMessage] = useState('');
   const [numberPool, setNumberPool] = useState<string[]>([]);
+  const [userPools, setUserPools] = useState<UserPool[]>([]);
 
   useEffect(() => {
     fetch('/api/admin/config')
@@ -81,13 +95,17 @@ export default function ConfigPanel() {
       .then(data => {
         const prizes: Prize[] = [];
         (data.rounds || []).forEach((r: Round) =>
-          (r.prizes || []).forEach(p => prizes.push({ ...p, poolType: r.poolType }))
+          (r.prizes || []).forEach(p => prizes.push({ ...p, poolType: r.poolType, poolBindings: r.poolBindings }))
         );
         setAllPrizes(prizes);
       });
-    fetch('/api/admin/pool')
+    fetch('/api/admin/user-pools')
       .then(res => res.json())
-      .then(data => setNumberPool(data.numberPool || []));
+      .then(data => {
+        const pools = data.pools || [];
+        setUserPools(pools);
+        setNumberPool(Array.from(new Set(pools.flatMap((pool: UserPool) => pool.numbers || []))));
+      });
   }, []);
 
   const handleToggle = async () => {
@@ -344,10 +362,21 @@ export default function ConfigPanel() {
             const numbers = calNumbers.split(/[,，\s]+/).map(s => s.trim()).filter(Boolean);
             if (numbers.length === 0) return;
             const selectedPrize = allPrizes.find(p => p.id === calPrizeId);
-            if (selectedPrize?.poolType !== 'live') {
-              const invalid = numbers.filter(n => !numberPool.includes(n));
+            const bindings = selectedPrize?.poolBindings || [{
+              poolId: selectedPrize?.poolType === 'live' ? 'live' : 'default',
+              probability: 100,
+            }];
+            const includesLive = bindings.some(binding => binding.poolId === 'live');
+            const boundNumbers = new Set(
+              userPools
+                .filter(pool => bindings.some(binding => binding.poolId === pool.id))
+                .flatMap(pool => pool.numbers)
+            );
+            const validNumbers = boundNumbers.size > 0 ? boundNumbers : new Set(numberPool);
+            if (!includesLive) {
+              const invalid = numbers.filter(n => !validNumbers.has(n));
               if (invalid.length > 0) {
-                setCalMessage(`以下号码不在当前号码池中: ${invalid.join(', ')}`);
+                setCalMessage(`以下号码不在当前绑定用户池中: ${invalid.join(', ')}`);
                 return;
               }
             }

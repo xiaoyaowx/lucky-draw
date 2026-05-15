@@ -436,7 +436,7 @@ body {
 }
 
 .admin-content {
-  max-width: 840px;
+  max-width: 1060px;
   margin: 0 auto;
 }
 
@@ -725,6 +725,264 @@ body {
 
 .pool-numbers.expanded::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 215, 0, 0.5);
+}
+
+.pool-workspace {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.pool-sidebar,
+.pool-main {
+  min-width: 0;
+}
+
+.pool-sidebar {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+
+.pool-sidebar-header,
+.pool-panel-title,
+.pool-main-header,
+.pool-action-footer,
+.pool-title-row,
+.pool-header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.pool-sidebar-header,
+.pool-panel-title {
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pool-count-badge {
+  flex: 0 0 auto;
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 215, 0, 0.12);
+  color: #ffd700;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+}
+
+.pool-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.pool-create-row input,
+.pool-title-row input,
+.pool-search-input {
+  width: 100%;
+}
+
+.pool-list-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.manager-panel .pool-list-item {
+  width: 100%;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.manager-panel .pool-list-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.manager-panel .pool-list-item.active {
+  background: rgba(255, 215, 0, 0.12);
+  border-color: rgba(255, 215, 0, 0.42);
+  box-shadow: inset 3px 0 0 #ffd700;
+}
+
+.pool-list-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.pool-list-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pool-list-count,
+.pool-meta,
+.pool-panel-title span:last-child,
+.pool-action-footer span {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.pool-main {
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+
+.pool-main-header {
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.pool-title-block {
+  min-width: 0;
+  flex: 1;
+}
+
+.pool-title-row {
+  gap: 10px;
+}
+
+.pool-title-row input {
+  max-width: 360px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pool-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.pool-header-actions {
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pool-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  margin: 16px 0;
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+}
+
+.manager-panel .pool-mode-tabs button {
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.manager-panel .pool-mode-tabs button.active {
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+}
+
+.pool-action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pool-generate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.pool-generate-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+}
+
+.pool-action-footer {
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.pool-action-panel textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+}
+
+.pool-numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.pool-numbers-grid span {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.055);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pool-numbers-grid .pool-empty-text,
+.pool-empty-state {
+  grid-column: 1 / -1;
+  padding: 34px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  background: transparent;
+}
+
+@media (max-width: 860px) {
+  .pool-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .pool-main-header,
+  .pool-action-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pool-header-actions {
+    justify-content: flex-start;
+  }
+
+  .pool-generate-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* 配置项 */

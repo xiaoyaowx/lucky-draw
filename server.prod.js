@@ -4,6 +4,7 @@
  */
 
 const { createServer } = require('http');
+const { createServer: createNetServer } = require('net');
 const { parse } = require('url');
 const path = require('path');
 const fs = require('fs');
@@ -11,8 +12,50 @@ const ws = require('ws');
 const { WebSocketServer } = ws;
 
 // 环境配置
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const requestedPort = parsePort(process.env.PORT, 3000);
+let PORT = requestedPort;
 const HOSTNAME = process.env.HOSTNAME || '0.0.0.0';
+
+function parsePort(value, fallback) {
+  const port = Number.parseInt(value || `${fallback}`, 10);
+  return Number.isInteger(port) && port > 0 && port <= 65535 ? port : fallback;
+}
+
+function isPortAvailable(port, hostname) {
+  return new Promise((resolve) => {
+    const tester = createNetServer();
+    const probeHostname = hostname === '0.0.0.0' || hostname === '::' ? undefined : hostname;
+
+    tester.once('error', () => {
+      resolve(false);
+    });
+
+    tester.once('listening', () => {
+      tester.close(() => resolve(true));
+    });
+
+    if (probeHostname) {
+      tester.listen(port, probeHostname);
+    } else {
+      tester.listen(port);
+    }
+  });
+}
+
+async function findAvailablePort(startPort, hostname) {
+  for (let port = startPort; port <= 65535; port += 1) {
+    if (await isPortAvailable(port, hostname)) {
+      if (port !== startPort) {
+        console.warn(`> Port ${startPort} is in use, using ${port} instead`);
+      }
+      return port;
+    }
+
+    console.warn(`> Port ${port} is in use, trying ${port + 1}`);
+  }
+
+  throw new Error(`No available port found from ${startPort} to 65535`);
+}
 
 // 解析目录：环境变量 > 上层目录（打包模式） > 当前目录
 // 打包模式下 cwd 为 runtime/，数据和资源在上层 lucky-draw/ 目录
@@ -32,7 +75,7 @@ const STATIC_DIR = path.join(process.cwd(), '.next', 'static');
 process.env.DATA_DIR = DATA_DIR;
 
 console.log('启动配置:');
-console.log(`  端口: ${PORT}`);
+console.log(`  请求端口: ${PORT}`);
 console.log(`  数据目录: ${DATA_DIR}`);
 console.log(`  资源目录: ${PUBLIC_DIR}`);
 console.log(`  静态文件: ${STATIC_DIR}`);
@@ -104,17 +147,7 @@ process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig);
 
 // 加载 Next.js Server
 const NextServer = require('next/dist/server/next-server').default;
-
-const nextServer = new NextServer({
-  hostname: HOSTNAME,
-  port: PORT,
-  dir: nextDir,
-  dev: false,
-  customServer: true,
-  conf: nextConfig,
-});
-
-const nextHandler = nextServer.getRequestHandler();
+let nextHandler;
 
 // 创建 HTTP 服务器
 const server = createServer(async (req, res) => {
@@ -213,9 +246,32 @@ server.on('upgrade', (req, socket, head) => {
 });
 
 // 启动服务器
-nextServer.prepare().then(() => {
+async function start() {
+  PORT = await findAvailablePort(requestedPort, HOSTNAME);
+  process.env.PORT = String(PORT);
+
+  console.log('最终启动端口:', PORT);
+
+  const nextServer = new NextServer({
+    hostname: HOSTNAME,
+    port: PORT,
+    dir: nextDir,
+    dev: false,
+    customServer: true,
+    conf: nextConfig,
+  });
+
+  nextHandler = nextServer.getRequestHandler();
+
+  await nextServer.prepare();
+
   server.listen(PORT, HOSTNAME, () => {
     console.log(`> Ready on http://localhost:${PORT}`);
     console.log(`> WebSocket on ws://localhost:${PORT}/ws`);
   });
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });
