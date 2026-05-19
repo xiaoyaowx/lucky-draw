@@ -35,14 +35,14 @@ export function getFullState(displayStateOverride?: DisplayState) {
     prizeRemaining: lotteryState.prizeRemaining,
     winnersByPrize: lotteryState.winnersByPrize,
     numberPool: lotteryState.numberPool,
-    livePoolCount: livePool.registrations.length,
+    livePoolCount: livePool.members.length,
     availablePoolSize: availablePool.length,
     currentRoundPoolBindings: getRoundPoolBindings(currentRound),
     availablePools: availablePools.map(pool => ({
       poolId: pool.poolId,
       name: pool.name,
       probability: pool.probability,
-      count: pool.numbers.length,
+      count: pool.members.length,
       isLive: pool.isLive || false,
     })),
 

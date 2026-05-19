@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserPools, DEFAULT_USER_POOL_ID, normalizePoolNumbers, resetLotteryRecords, saveUserPools } from '@/lib/user-pools';
+import { getConfig } from '@/lib/lottery';
+import { getMemberIds, getRequiredMemberError, normalizeMembers } from '@/lib/participants';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
 
@@ -28,6 +30,12 @@ export async function POST(request: NextRequest) {
     }
 
     const numberPool = normalizePoolNumbers(numbers);
+    const schema = getConfig().participantSchema;
+    const members = normalizeMembers(numberPool, schema, 'manual');
+    const memberError = getRequiredMemberError(members, schema);
+    if (memberError) {
+      return NextResponse.json({ error: memberError }, { status: 400 });
+    }
 
     // 替换默认号码池并清除旧的抽奖记录
     const pools = getUserPools();
@@ -37,12 +45,14 @@ export async function POST(request: NextRequest) {
       pools.unshift({
         id: DEFAULT_USER_POOL_ID,
         name: '默认预设池',
-        numbers: numberPool,
+        schemaVersion: 2,
+        members,
+        numbers: getMemberIds(members),
         createdAt: now,
         updatedAt: now,
       });
     } else {
-      pools[index] = { ...pools[index], numbers: numberPool, updatedAt: now };
+      pools[index] = { ...pools[index], members, numbers: getMemberIds(members), updatedAt: now };
     }
     saveUserPools(pools);
     resetLotteryRecords();

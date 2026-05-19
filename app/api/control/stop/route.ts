@@ -13,6 +13,7 @@ import {
   getAvailableUnion,
   takeCalibrationNumbers,
 } from '@/lib/pool-selection';
+import { DrawCandidate, createDisplayParticipant, createWinnerSnapshot } from '@/lib/participants';
 import { broadcastRollingStop, broadcastStateUpdate } from '@/lib/ws-manager';
 import { getFullState } from '@/lib/full-state';
 
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest) {
     // 初始化 allWinners
     if (!lotteryState.allWinners) {
       lotteryState.allWinners = [];
+    }
+    if (!lotteryState.allWinnerIds) {
+      lotteryState.allWinnerIds = [...lotteryState.allWinners];
     }
 
     // 找到奖品信息及所属轮次
@@ -61,35 +65,39 @@ export async function POST(request: NextRequest) {
     const actualCount = Math.min(count, remaining, availablePool.length);
 
     if (actualCount === 0) {
-      const newDisplayState = updateDisplayState({ isRolling: false, winners: [], rollingPool: undefined });
-      broadcastRollingStop([]);
+      const newDisplayState = updateDisplayState({ isRolling: false, winners: [], winnerDetails: [], rollingPool: undefined });
+      broadcastRollingStop([], []);
       broadcastStateUpdate(getFullState(newDisplayState));
       return NextResponse.json({ error: 'No numbers available' }, { status: 400 });
     }
 
-    const winningNumbers: string[] = [];
+    const winningCandidates: DrawCandidate[] = [];
 
     // 校准号码：优先放入保底名单中在可用池里的号码
     const calibrationList = config.calibration?.[prizeId] || [];
     if (calibrationList.length > 0) {
       console.log('[calibration] prizeId:', prizeId, 'list:', calibrationList, 'poolSize:', availablePool.length, 'poolSample:', availablePool.slice(0, 5));
     }
-    const { numbers: calibrationNumbers, usedCalibration } = takeCalibrationNumbers(
+    const { candidates: calibrationCandidates, usedCalibration } = takeCalibrationNumbers(
       availablePools,
       calibrationList,
       actualCount,
     );
-    winningNumbers.push(...calibrationNumbers);
+    winningCandidates.push(...calibrationCandidates);
 
     // 剩余名额按轮次绑定的用户池概率抽取
-    const randomCount = actualCount - winningNumbers.length;
-    winningNumbers.push(...drawWeightedNumbers(availablePools, randomCount));
+    const randomCount = actualCount - winningCandidates.length;
+    winningCandidates.push(...drawWeightedNumbers(availablePools, randomCount));
 
     // 打乱顺序，保底号码出现在随机位置
-    for (let i = winningNumbers.length - 1; i > 0; i--) {
+    for (let i = winningCandidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [winningNumbers[i], winningNumbers[j]] = [winningNumbers[j], winningNumbers[i]];
+      [winningCandidates[i], winningCandidates[j]] = [winningCandidates[j], winningCandidates[i]];
     }
+
+    const winningNumbers = winningCandidates.map(candidate => candidate.id);
+    const winnerDetails = winningCandidates.map(candidate => createDisplayParticipant(candidate, config.participantSchema));
+    const winnerSnapshots = winningCandidates.map(candidate => createWinnerSnapshot(candidate));
 
     // 用完的校准号码从配置中移除，不留痕迹
     if (usedCalibration.length > 0 && config.calibration) {
@@ -110,13 +118,18 @@ export async function POST(request: NextRequest) {
       lotteryState.winnersByPrize[prizeId] = {
         level: prize.level,
         name: prize.name,
+        winners: [],
         numbers: [],
       };
     }
-    lotteryState.winnersByPrize[prizeId].numbers.push(...winningNumbers);
+    const prizeWinnerInfo = lotteryState.winnersByPrize[prizeId];
+    prizeWinnerInfo.winners.push(...winnerSnapshots);
+    prizeWinnerInfo.numbers = prizeWinnerInfo.numbers || [];
+    prizeWinnerInfo.numbers.push(...winningNumbers);
 
     // 更新全局中奖记录
     lotteryState.allWinners.push(...winningNumbers);
+    lotteryState.allWinnerIds.push(...winningNumbers);
 
     // 更新剩余数量
     lotteryState.prizeRemaining[prizeId] = remaining - actualCount;
@@ -127,11 +140,12 @@ export async function POST(request: NextRequest) {
     const newDisplayState = updateDisplayState({
       isRolling: false,
       winners: winningNumbers,
+      winnerDetails,
       rollingPool: undefined,
     });
 
     // 广播停止消息
-    broadcastRollingStop(winningNumbers);
+    broadcastRollingStop(winningNumbers, winnerDetails);
 
     // 广播完整状态
     const fullState = getFullState(newDisplayState);
@@ -139,6 +153,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       winners: winningNumbers,
+      winnerDetails,
       prizeRemaining: lotteryState.prizeRemaining,
       winnersByPrize: lotteryState.winnersByPrize,
       numberPool: lotteryState.numberPool,

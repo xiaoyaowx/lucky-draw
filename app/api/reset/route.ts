@@ -32,13 +32,22 @@ export async function POST(request: NextRequest) {
       }
 
       // 获取该奖品已中奖的号码
-      const prizeWinners = currentState.winnersByPrize[prizeId]?.numbers || [];
+      const prizeInfo = currentState.winnersByPrize[prizeId];
+      const prizeWinners = [
+        ...(prizeInfo?.winners || []).map(winner => winner.id),
+        ...(prizeInfo?.numbers || []),
+      ];
 
       // numberPool 始终保持不变，无需放回
 
       // 从 allWinners 中移除这些号码
       if (currentState.allWinners) {
         currentState.allWinners = currentState.allWinners.filter(
+          n => !prizeWinners.includes(n)
+        );
+      }
+      if (currentState.allWinnerIds) {
+        currentState.allWinnerIds = currentState.allWinnerIds.filter(
           n => !prizeWinners.includes(n)
         );
       }
@@ -68,6 +77,7 @@ export async function POST(request: NextRequest) {
         prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
         winnersByPrize: {},
         allWinners: [],
+        allWinnerIds: [],
       };
 
       saveLotteryState(state);

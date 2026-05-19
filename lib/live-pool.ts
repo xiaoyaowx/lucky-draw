@@ -1,5 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import { getConfig } from './lottery';
+import { ParticipantSchema, PoolMember, getMemberIds, normalizeMembers } from './participants';
+import { getUserPools } from './user-pools';
 
 function getDataDir(): string {
   return process.env.DATA_DIR || path.join(process.cwd(), 'data');
@@ -40,48 +43,135 @@ function safeWriteJSON(filePath: string, data: unknown): void {
 
 export interface LivePool {
   isOpen: boolean;
+  schemaVersion: 2;
+  members: PoolMember[];
   registrations: string[];
   clearedAt: number;
 }
 
 const DEFAULT_LIVE_POOL: LivePool = {
   isOpen: false,
+  schemaVersion: 2,
+  members: [],
   registrations: [],
   clearedAt: 0,
 };
 
+function getUserMemberMap(): Map<string, PoolMember> {
+  const members = new Map<string, PoolMember>();
+  for (const userPool of getUserPools()) {
+    for (const member of userPool.members) {
+      if (!members.has(member.id)) {
+        members.set(member.id, member);
+      }
+    }
+  }
+  return members;
+}
+
+function createRegisteredSnapshot(member: PoolMember, previous?: Pick<PoolMember, 'createdAt' | 'updatedAt'>): PoolMember {
+  return {
+    ...member,
+    values: { ...member.values },
+    createdAt: previous?.createdAt,
+    updatedAt: previous?.updatedAt,
+    source: 'register',
+  };
+}
+
+function normalizeCheckedInMembers(rawPool: Partial<LivePool>, schema: ParticipantSchema): PoolMember[] {
+  const hasMembersField = Array.isArray(rawPool.members);
+  const rawMembers = hasMembersField
+    ? rawPool.members
+    : (Array.isArray(rawPool.registrations) ? rawPool.registrations : []);
+  const normalized = normalizeMembers(rawMembers, schema, hasMembersField ? 'register' : 'migration');
+  const userMemberMap = getUserMemberMap();
+  const seen = new Set<string>();
+  const members: PoolMember[] = [];
+
+  for (const member of normalized) {
+    if (seen.has(member.id)) continue;
+    const matchedMember = userMemberMap.get(member.id);
+    if (!matchedMember) continue;
+    seen.add(member.id);
+    members.push(createRegisteredSnapshot(matchedMember, member));
+  }
+
+  return members;
+}
+
+function normalizeLivePool(rawPool: Partial<LivePool>): LivePool {
+  const schema = getConfig().participantSchema;
+  const members = normalizeCheckedInMembers(rawPool, schema);
+
+  return {
+    isOpen: Boolean(rawPool.isOpen),
+    schemaVersion: 2,
+    members,
+    registrations: getMemberIds(members),
+    clearedAt: typeof rawPool.clearedAt === 'number' ? rawPool.clearedAt : 0,
+  };
+}
+
+function serializeLivePool(pool: LivePool): Omit<LivePool, 'registrations'> {
+  return {
+    isOpen: pool.isOpen,
+    schemaVersion: 2,
+    members: pool.members,
+    clearedAt: pool.clearedAt,
+  };
+}
+
 export function getLivePool(): LivePool {
-  return safeReadJSON<LivePool>(getLivePoolFile(), DEFAULT_LIVE_POOL);
+  return normalizeLivePool(safeReadJSON<LivePool>(getLivePoolFile(), DEFAULT_LIVE_POOL));
 }
 
 export function saveLivePool(pool: LivePool): void {
-  safeWriteJSON(getLivePoolFile(), pool);
+  safeWriteJSON(getLivePoolFile(), serializeLivePool(normalizeLivePool(pool)));
 }
 
-export function registerEmployee(employeeId: string): { success: boolean; message: string } {
+function findMemberByUniqueId(id: string): PoolMember | null {
+  return getUserMemberMap().get(id) || null;
+}
+
+export function registerParticipant(values: Record<string, string>): { success: boolean; message: string; member?: PoolMember } {
   const pool = getLivePool();
+  const schema = getConfig().participantSchema;
 
   if (!pool.isOpen) {
     return { success: false, message: '登记已关闭' };
   }
 
-  const trimmedId = employeeId.trim();
-  if (!trimmedId) {
-    return { success: false, message: '工号不能为空' };
+  const member = normalizeMembers([values], schema, 'register')[0];
+  if (!member) {
+    return { success: false, message: `${schema.uniqueField} 不能为空` };
   }
 
-  if (pool.registrations.includes(trimmedId)) {
-    return { success: false, message: '该工号已登记' };
+  const matchedMember = findMemberByUniqueId(member.id);
+  if (!matchedMember) {
+    return { success: false, message: '该工号不在抽奖名单中' };
   }
 
-  pool.registrations.push(trimmedId);
+  if (pool.members.some(item => item.id === member.id)) {
+    return { success: false, message: '该工号已签到' };
+  }
+
+  pool.members.push(createRegisteredSnapshot(matchedMember, { updatedAt: Date.now() }));
+  pool.registrations = getMemberIds(pool.members);
   saveLivePool(pool);
 
-  return { success: true, message: '登记成功' };
+  return { success: true, message: '签到成功', member: matchedMember };
+}
+
+export function registerEmployee(employeeId: string): { success: boolean; message: string } {
+  const schema = getConfig().participantSchema;
+  const result = registerParticipant({ [schema.uniqueField]: employeeId });
+  return { success: result.success, message: result.message };
 }
 
 export function clearLivePool(): void {
   const pool = getLivePool();
+  pool.members = [];
   pool.registrations = [];
   pool.clearedAt = Date.now();
   saveLivePool(pool);
@@ -95,6 +185,8 @@ export function setLivePoolOpen(isOpen: boolean): void {
 
 export function removeFromLivePool(numbers: string[]): void {
   const pool = getLivePool();
-  pool.registrations = pool.registrations.filter(id => !numbers.includes(id));
+  const removeSet = new Set(numbers);
+  pool.members = pool.members.filter(member => !removeSet.has(member.id));
+  pool.registrations = getMemberIds(pool.members);
   saveLivePool(pool);
 }

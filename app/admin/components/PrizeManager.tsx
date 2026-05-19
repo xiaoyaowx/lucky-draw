@@ -15,6 +15,7 @@ interface Prize {
   color: string;
   sponsor: string;
   image?: string;
+  requireCheckIn?: boolean;
 }
 
 export default function PrizeManager() {
@@ -29,6 +30,7 @@ export default function PrizeManager() {
     color: '#FFD700',
     sponsor: '',
     image: '',
+    requireCheckIn: false,
   });
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -55,7 +57,7 @@ export default function PrizeManager() {
   };
 
   const resetForm = () => {
-    setFormData({ level: '', name: '', quantity: 1, color: '#FFD700', sponsor: '', image: '' });
+    setFormData({ level: '', name: '', quantity: 1, color: '#FFD700', sponsor: '', image: '', requireCheckIn: false });
     setEditingId(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -137,6 +139,7 @@ export default function PrizeManager() {
       color: prize.color,
       sponsor: prize.sponsor,
       image: prize.image || '',
+      requireCheckIn: Boolean(prize.requireCheckIn),
     });
   };
 
@@ -201,6 +204,14 @@ export default function PrizeManager() {
                 onChange={e => setFormData({ ...formData, sponsor: e.target.value })}
                 style={{ minWidth: 100 }}
               />
+              <label className="prize-checkin-toggle">
+                <input
+                  type="checkbox"
+                  checked={formData.requireCheckIn}
+                  onChange={e => setFormData({ ...formData, requireCheckIn: e.target.checked })}
+                />
+                仅已签到参与
+              </label>
               <button className="btn-primary" onClick={handleSubmit}>{editingId ? '更新' : '添加'}</button>
               {editingId && <button className="btn-ghost" onClick={resetForm}>取消</button>}
             </div>
@@ -286,6 +297,9 @@ export default function PrizeManager() {
                 <span style={{ flex: '0 0 auto', color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>x{prize.quantity}</span>
                 {prize.sponsor && (
                   <span style={{ flex: '0 0 auto', color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{prize.sponsor}</span>
+                )}
+                {prize.requireCheckIn && (
+                  <span className="status-tag open" style={{ flex: '0 0 auto' }}>仅已签到</span>
                 )}
                 <button className="btn-sm" onClick={() => handleEdit(prize)}>编辑</button>
                 <button className="btn-danger btn-sm" onClick={() => handleDelete(prize.id)}>删除</button>

@@ -20,6 +20,7 @@ export async function GET() {
         prizeRemaining: getInitialPrizeRemaining(prizesData.rounds),
         winnersByPrize: {},
         allWinners: [],
+        allWinnerIds: [],
       };
       saveLotteryState(state);
     }

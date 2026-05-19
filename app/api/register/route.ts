@@ -13,7 +13,11 @@ export async function GET() {
     return NextResponse.json({
       isOpen: pool.isOpen,
       registrations: pool.registrations,
-      count: pool.registrations.length,
+      members: pool.members,
+      count: pool.members.length,
+      fields: config.participantSchema.fields,
+      uniqueField: config.participantSchema.uniqueField,
+      displayTemplate: config.participantSchema.displayTemplate,
       registerSettings,
       version: pool.clearedAt || 0,
     });
@@ -26,13 +30,16 @@ export async function GET() {
 // POST: 提交工号登记
 export async function POST(request: NextRequest) {
   try {
-    const { employeeId } = await request.json();
+    const body = await request.json();
+    const { employeeId } = body;
+
+    const config = getConfig();
+    const registerSettings = config.registerSettings || { length: 6, allowLetters: false };
+
     if (typeof employeeId !== 'string') {
       return NextResponse.json({ success: false, message: '工号格式错误' }, { status: 400 });
     }
 
-    const config = getConfig();
-    const registerSettings = config.registerSettings || { length: 6, allowLetters: false };
     const trimmedId = employeeId.trim();
     if (!trimmedId) {
       return NextResponse.json({ success: false, message: '工号不能为空' }, { status: 400 });

@@ -1,6 +1,33 @@
 {
   "allowRepeatWin": false,
   "numbersPerRow": 10,
+  "participantSchema": {
+    "schemaVersion": 2,
+    "fields": [
+      {
+        "key": "number",
+        "label": "工号",
+        "type": "text",
+        "required": true,
+        "unique": true,
+        "visible": true,
+        "searchable": true,
+        "mask": "none"
+      },
+      {
+        "key": "name",
+        "label": "姓名",
+        "type": "text",
+        "required": false,
+        "unique": false,
+        "visible": true,
+        "searchable": true,
+        "mask": "none"
+      }
+    ],
+    "uniqueField": "number",
+    "displayTemplate": "{name} {number}"
+  },
   "numberPoolConfig": {
     "type": "auto",
     "start": 2000,
@@ -21,7 +48,7 @@
   "displaySettings": {
     "showQuantity": false,
     "showSponsor": true,
-    "showNumberBorder": true,
+    "showNumberBorder": false,
     "maskPhone": false
   },
   "fontColors": {

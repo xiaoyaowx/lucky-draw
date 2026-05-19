@@ -1,12 +1,13 @@
 import { Config, LotteryState, PoolBinding, Round } from './lottery';
 import { getLivePool } from './live-pool';
+import { DrawCandidate, createDrawCandidate } from './participants';
 import { DEFAULT_USER_POOL_ID, getUserPools, LIVE_USER_POOL_ID, UserPool } from './user-pools';
 
 export interface ResolvedPool {
   poolId: string;
   name: string;
   probability: number;
-  numbers: string[];
+  members: DrawCandidate[];
   isLive?: boolean;
 }
 
@@ -46,18 +47,23 @@ export function getRoundPoolBindings(round: Round | null | undefined): PoolBindi
   }];
 }
 
+function prizeRequiresCheckIn(round: Round | null | undefined, prizeId?: string): boolean {
+  if (!round || !prizeId) return false;
+  return Boolean(round.prizes.find(prize => prize.id === prizeId)?.requireCheckIn);
+}
+
 export function getPoolOptions(userPools = getUserPools()): PoolOption[] {
   const livePool = getLivePool();
   return [
     ...userPools.map(pool => ({
       id: pool.id,
       name: pool.name,
-      count: pool.numbers.length,
+      count: pool.members.length,
     })),
     {
       id: LIVE_USER_POOL_ID,
       name: '签到登记池',
-      count: livePool.registrations.length,
+      count: livePool.members.length,
       isLive: true,
     },
   ];
@@ -73,7 +79,8 @@ export function getPoolBindingLabel(bindings: PoolBinding[] | undefined, userPoo
     .join(' / ');
 }
 
-export function resolveRoundPools(round: Round | null | undefined): ResolvedPool[] {
+export function resolveRoundPools(round: Round | null | undefined, config?: Config): ResolvedPool[] {
+  const schema = config?.participantSchema;
   const userPools = getUserPools();
   const userPoolMap = new Map<string, UserPool>(userPools.map(pool => [pool.id, pool]));
   const livePool = getLivePool();
@@ -85,7 +92,12 @@ export function resolveRoundPools(round: Round | null | undefined): ResolvedPool
           poolId: LIVE_USER_POOL_ID,
           name: '签到登记池',
           probability: binding.probability,
-          numbers: [...livePool.registrations],
+          members: livePool.members.map(member => createDrawCandidate(
+            member,
+            { id: LIVE_USER_POOL_ID, name: '签到登记池' },
+            binding.probability,
+            schema,
+          )),
           isLive: true,
         };
       }
@@ -96,19 +108,31 @@ export function resolveRoundPools(round: Round | null | undefined): ResolvedPool
         poolId: pool.id,
         name: pool.name,
         probability: binding.probability,
-        numbers: [...pool.numbers],
+        members: pool.members.map(member => createDrawCandidate(
+          member,
+          { id: pool.id, name: pool.name },
+          binding.probability,
+          schema,
+        )),
       };
     })
     .filter((pool): pool is ResolvedPool => Boolean(pool));
 }
 
-function uniqueNumbers(numbers: string[]): string[] {
-  return Array.from(new Set(numbers));
+function uniqueCandidates(candidates: DrawCandidate[]): DrawCandidate[] {
+  const seen = new Set<string>();
+  const result: DrawCandidate[] = [];
+  candidates.forEach((candidate) => {
+    if (!candidate.id || seen.has(candidate.id)) return;
+    seen.add(candidate.id);
+    result.push(candidate);
+  });
+  return result;
 }
 
-function removeNumberFromPools(pools: ResolvedPool[], number: string): void {
+function removeCandidateFromPools(pools: ResolvedPool[], id: string): void {
   pools.forEach((pool) => {
-    pool.numbers = pool.numbers.filter(item => item !== number);
+    pool.members = pool.members.filter(item => item.id !== id);
   });
 }
 
@@ -118,66 +142,82 @@ export function getAvailablePoolsForRound(
   config: Config,
   prizeId?: string,
 ): ResolvedPool[] {
-  let pools = resolveRoundPools(round)
+  const requireCheckIn = prizeRequiresCheckIn(round, prizeId);
+  const checkedInIds = requireCheckIn
+    ? new Set(getLivePool().registrations)
+    : null;
+
+  let pools = resolveRoundPools(round, config)
     .map(pool => ({
       ...pool,
-      numbers: uniqueNumbers(pool.numbers),
+      members: uniqueCandidates(pool.members).filter(member => !checkedInIds || checkedInIds.has(member.id)),
     }));
 
   const excluded = new Set<string>();
-  const currentPrizeWinners = prizeId ? lotteryState.winnersByPrize[prizeId]?.numbers || [] : [];
+  const currentPrizeInfo = prizeId ? lotteryState.winnersByPrize[prizeId] : undefined;
+  const currentPrizeWinners = currentPrizeInfo
+    ? [
+        ...(currentPrizeInfo.winners || []).map(winner => winner.id),
+        ...(currentPrizeInfo.numbers || []),
+      ]
+    : [];
   currentPrizeWinners.forEach(number => excluded.add(number));
 
-  if (!config.allowRepeatWin && lotteryState.allWinners?.length) {
-    lotteryState.allWinners.forEach(number => excluded.add(number));
+  const allWinnerIds = lotteryState.allWinnerIds || lotteryState.allWinners || [];
+  if (!config.allowRepeatWin && allWinnerIds.length) {
+    allWinnerIds.forEach(number => excluded.add(number));
   }
 
   if (excluded.size > 0) {
     pools = pools.map(pool => ({
       ...pool,
-      numbers: pool.numbers.filter(number => !excluded.has(number)),
+      members: pool.members.filter(member => !excluded.has(member.id)),
     }));
   }
 
-  return pools.filter(pool => pool.probability > 0 && pool.numbers.length > 0);
+  return pools.filter(pool => pool.probability > 0 && pool.members.length > 0);
 }
 
-export function getAvailableUnion(pools: ResolvedPool[]): string[] {
-  return uniqueNumbers(pools.flatMap(pool => pool.numbers));
+export function getAvailableUnion(pools: ResolvedPool[]): DrawCandidate[] {
+  return uniqueCandidates(pools.flatMap(pool => pool.members));
 }
 
 export function takeCalibrationNumbers(
   pools: ResolvedPool[],
   calibrationList: string[],
   maxCount: number,
-): { numbers: string[]; usedCalibration: string[] } {
-  const numbers: string[] = [];
+): { candidates: DrawCandidate[]; numbers: string[]; usedCalibration: string[] } {
+  const candidates: DrawCandidate[] = [];
   const usedCalibration: string[] = [];
 
   for (const rawNumber of calibrationList) {
-    if (numbers.length >= maxCount) break;
-    const candidates = [rawNumber, rawNumber.padStart(3, '0')];
-    const matched = candidates.find(candidate =>
-      pools.some(pool => pool.numbers.includes(candidate))
-    );
+    if (candidates.length >= maxCount) break;
+    const candidateIds = [rawNumber, rawNumber.padStart(3, '0')];
+    const matched = candidateIds
+      .map(candidate => pools.flatMap(pool => pool.members).find(member => member.id === candidate))
+      .find((candidate): candidate is DrawCandidate => Boolean(candidate));
 
     if (matched) {
-      numbers.push(matched);
-      removeNumberFromPools(pools, matched);
+      candidates.push(matched);
+      removeCandidateFromPools(pools, matched.id);
       usedCalibration.push(rawNumber);
     } else {
       console.log('[calibration] number not in pool:', rawNumber);
     }
   }
 
-  return { numbers, usedCalibration };
+  return {
+    candidates,
+    numbers: candidates.map(candidate => candidate.id),
+    usedCalibration,
+  };
 }
 
-export function drawWeightedNumbers(pools: ResolvedPool[], count: number): string[] {
-  const winners: string[] = [];
+export function drawWeightedNumbers(pools: ResolvedPool[], count: number): DrawCandidate[] {
+  const winners: DrawCandidate[] = [];
 
   for (let i = 0; i < count; i += 1) {
-    const availablePools = pools.filter(pool => pool.probability > 0 && pool.numbers.length > 0);
+    const availablePools = pools.filter(pool => pool.probability > 0 && pool.members.length > 0);
     if (availablePools.length === 0) break;
 
     const totalWeight = availablePools.reduce((sum, pool) => sum + pool.probability, 0);
@@ -192,9 +232,9 @@ export function drawWeightedNumbers(pools: ResolvedPool[], count: number): strin
       }
     }
 
-    const winner = selectedPool.numbers[Math.floor(Math.random() * selectedPool.numbers.length)];
+    const winner = selectedPool.members[Math.floor(Math.random() * selectedPool.members.length)];
     winners.push(winner);
-    removeNumberFromPools(pools, winner);
+    removeCandidateFromPools(pools, winner.id);
   }
 
   return winners;

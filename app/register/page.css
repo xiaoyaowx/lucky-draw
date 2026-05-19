@@ -106,6 +106,24 @@
   box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
 
+.register-field-input {
+  width: 100%;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 16px;
+  padding: 0 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.register-field-input:focus {
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
 .register-hint {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);

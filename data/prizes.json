@@ -19,7 +19,8 @@
           "name": "Apple Watch",
           "quantity": 3,
           "color": "#FFA500",
-          "sponsor": "XX网络科技"
+          "sponsor": "XX网络科技",
+          "requireCheckIn": true
         },
         {
           "id": "1-3",
@@ -45,7 +46,18 @@
           "color": "#98FB98",
           "sponsor": "XX贸易公司"
         }
-      ]
+      ],
+      "poolBindings": [
+        {
+          "poolId": "default",
+          "probability": 20
+        },
+        {
+          "poolId": "pool-1778860603374-5furo7",
+          "probability": 80
+        }
+      ],
+      "poolType": "preset"
     },
     {
       "id": 2,

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createUserPool, getUserPools, normalizePoolNumbers } from '@/lib/user-pools';
+import { getConfig } from '@/lib/lottery';
+import { getRequiredMemberError, normalizeMembers } from '@/lib/participants';
 import { getPoolOptions } from '@/lib/pool-selection';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
@@ -21,12 +23,20 @@ export async function GET() {
 // 新增用户池
 export async function POST(request: NextRequest) {
   try {
-    const { name, numbers } = await request.json();
+    const { name, numbers, members } = await request.json();
     if (typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Missing name' }, { status: 400 });
     }
 
-    const pool = createUserPool(name, normalizePoolNumbers(Array.isArray(numbers) ? numbers : []));
+    const schema = getConfig().participantSchema;
+    const poolMembers = Array.isArray(members)
+      ? normalizeMembers(members, schema, 'manual')
+      : normalizeMembers(normalizePoolNumbers(Array.isArray(numbers) ? numbers : []), schema, 'manual');
+    const memberError = getRequiredMemberError(poolMembers, schema);
+    if (memberError) {
+      return NextResponse.json({ error: memberError }, { status: 400 });
+    }
+    const pool = createUserPool(name, poolMembers);
     broadcastStateUpdate(getFullState());
 
     return NextResponse.json({ pool });

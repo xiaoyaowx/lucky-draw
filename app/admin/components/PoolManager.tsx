@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { parseMembersFromText } from '@/lib/participants';
+import type { ParticipantSchema, PoolMember } from '@/lib/participants';
 import LivePoolManager from './LivePoolManager';
 
 type PoolTab = 'preset' | 'live';
@@ -10,12 +12,52 @@ interface UserPool {
   id: string;
   name: string;
   numbers: string[];
+  members?: PoolMember[];
 }
 
 const DEFAULT_POOL_ID = 'default';
+const DEFAULT_SCHEMA: ParticipantSchema = {
+  schemaVersion: 2,
+  fields: [{ key: 'number', label: '号码', type: 'text', required: true, unique: true, visible: true, searchable: true }],
+  uniqueField: 'number',
+  displayTemplate: '{number}',
+};
+
+function getPoolMembers(pool: UserPool | undefined, schema: ParticipantSchema): PoolMember[] {
+  if (!pool) return [];
+  if (Array.isArray(pool.members) && pool.members.length > 0) return pool.members;
+  return (pool.numbers || []).map(number => ({
+    id: number,
+    values: { [schema.uniqueField]: number },
+  }));
+}
+
+function getMemberText(member: PoolMember, schema: ParticipantSchema): string {
+  const text = schema.displayTemplate.replace(/\{([\w]+)\}/g, (_, key: string) => member.values[key] || '').trim();
+  return text || member.id;
+}
+
+function getMissingRequiredFields(member: PoolMember, schema: ParticipantSchema) {
+  return schema.fields.filter(field => field.required && !member.values[field.key]);
+}
+
+function getRequiredImportError(members: PoolMember[], schema: ParticipantSchema): string {
+  for (const member of members) {
+    const missingField = getMissingRequiredFields(member, schema)[0];
+    if (missingField) {
+      return `${member.id || '成员'} 缺少必填字段：${missingField.label}`;
+    }
+  }
+  return '';
+}
+
+function isPoolMessageError(message: string): boolean {
+  return ['失败', '缺少', '只能', 'Invalid', 'Failed', 'No valid', 'not found', 'cannot'].some(token => message.includes(token));
+}
 
 function PresetPoolPanel() {
   const [pools, setPools] = useState<UserPool[]>([]);
+  const [schema, setSchema] = useState<ParticipantSchema>(DEFAULT_SCHEMA);
   const [selectedPoolId, setSelectedPoolId] = useState(DEFAULT_POOL_ID);
   const [newPoolName, setNewPoolName] = useState('');
   const [renameValue, setRenameValue] = useState('');
@@ -23,6 +65,7 @@ function PresetPoolPanel() {
   const [previewQuery, setPreviewQuery] = useState('');
   const [workMode, setWorkMode] = useState<PoolWorkMode>('preview');
   const [loading, setLoading] = useState(false);
+  const [poolMessage, setPoolMessage] = useState('');
   const [genConfig, setGenConfig] = useState({
     start: 1,
     end: 300,
@@ -35,12 +78,38 @@ function PresetPoolPanel() {
     [pools, selectedPoolId],
   );
 
-  const previewNumbers = useMemo(() => {
+  const previewMembers = useMemo(() => {
     if (!selectedPool) return [];
     const query = previewQuery.trim();
-    if (!query) return selectedPool.numbers;
-    return selectedPool.numbers.filter(number => number.includes(query));
-  }, [selectedPool, previewQuery]);
+    const members = getPoolMembers(selectedPool, schema);
+    if (!query) return members;
+    return members.filter(member =>
+      member.id.includes(query) ||
+      getMemberText(member, schema).includes(query) ||
+      Object.values(member.values).some(value => value.includes(query))
+    );
+  }, [selectedPool, previewQuery, schema]);
+  const visibleFields = useMemo(
+    () => schema.fields.filter(field => field.visible !== false),
+    [schema],
+  );
+  const importFieldOrder = useMemo(
+    () => [
+      ...schema.fields.filter(field => field.key === schema.uniqueField),
+      ...schema.fields.filter(field => field.key !== schema.uniqueField),
+    ],
+    [schema],
+  );
+  const isMultiFieldSchema = schema.fields.length > 1;
+  const autoGenerateBlockReason = isMultiFieldSchema
+    ? '当前已启用多字段参与者设置，用户池只能通过 CSV/批量导入维护，不能使用自动生成。'
+    : '';
+  const importMembers = useMemo(() => parseMembersFromText(manualInput, schema, 'manual'), [manualInput, schema]);
+  const importError = useMemo(() => {
+    if (!manualInput.trim()) return '';
+    if (importMembers.length === 0) return '未解析到可导入成员';
+    return getRequiredImportError(importMembers, schema);
+  }, [importMembers, manualInput, schema]);
 
   useEffect(() => {
     fetchPools();
@@ -52,9 +121,17 @@ function PresetPoolPanel() {
       setRenameValue(selectedPool.name);
       setManualInput('');
       setPreviewQuery('');
+      setPoolMessage('');
       setWorkMode('preview');
     }
   }, [selectedPool?.id]);
+
+  useEffect(() => {
+    if (isMultiFieldSchema && workMode === 'generate') {
+      setWorkMode('import');
+      setPoolMessage(autoGenerateBlockReason);
+    }
+  }, [autoGenerateBlockReason, isMultiFieldSchema, workMode]);
 
   const fetchPools = async () => {
     const res = await fetch('/api/admin/user-pools');
@@ -69,6 +146,9 @@ function PresetPoolPanel() {
   const fetchConfig = async () => {
     const res = await fetch('/api/admin/config');
     const data = await res.json();
+    if (data.config?.participantSchema) {
+      setSchema(data.config.participantSchema);
+    }
     if (data.config?.numberPoolConfig) {
       const cfg = data.config.numberPoolConfig;
       setGenConfig({
@@ -82,13 +162,21 @@ function PresetPoolPanel() {
 
   const updatePool = async (poolId: string, body: object) => {
     setLoading(true);
+    setPoolMessage('');
     try {
-      await fetch(`/api/admin/user-pools/${poolId}`, {
+      const res = await fetch(`/api/admin/user-pools/${poolId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPoolMessage(data.error || '保存失败');
+        return false;
+      }
       await fetchPools();
+      setPoolMessage(data.reset ? '已更新用户池，并重置抽奖记录' : '已保存');
+      return true;
     } finally {
       setLoading(false);
     }
@@ -119,16 +207,26 @@ function PresetPoolPanel() {
 
   const handleManualSet = async () => {
     if (!selectedPool) return;
-    const numbers = manualInput.split(/[,\n\r\s]+/).map(n => n.trim()).filter(Boolean);
-    if (numbers.length === 0) return;
+    if (importMembers.length === 0) return;
+    if (importError) {
+      setPoolMessage(importError);
+      return;
+    }
     if (!confirm('导入会覆盖当前用户池号码，并清空已有抽奖记录，确定继续吗？')) return;
-    await updatePool(selectedPool.id, { numbers });
-    setManualInput('');
-    setWorkMode('preview');
+    const ok = await updatePool(selectedPool.id, { members: importMembers });
+    if (ok) {
+      setManualInput('');
+      setWorkMode('preview');
+    }
   };
 
   const handleGenerate = async () => {
     if (!selectedPool) return;
+    if (autoGenerateBlockReason) {
+      setPoolMessage(autoGenerateBlockReason);
+      setWorkMode('import');
+      return;
+    }
     if (!confirm('生成会覆盖当前用户池号码，并清空已有抽奖记录，确定继续吗？')) return;
     await updatePool(selectedPool.id, {
       generateConfig: {
@@ -142,7 +240,7 @@ function PresetPoolPanel() {
   };
 
   const handleClear = async () => {
-    if (!selectedPool || selectedPool.numbers.length === 0) return;
+    if (!selectedPool || getPoolMembers(selectedPool, schema).length === 0) return;
     if (!confirm('确定要清空当前用户池吗？已有抽奖记录也会清空。')) return;
     await updatePool(selectedPool.id, { numbers: [] });
   };
@@ -195,7 +293,7 @@ function PresetPoolPanel() {
                   <span className="pool-list-title">{pool.name}</span>
                   {pool.id === DEFAULT_POOL_ID && <span className="status-tag closed">默认</span>}
                 </span>
-                <span className="pool-list-count">{pool.numbers.length} 人</span>
+                <span className="pool-list-count">{getPoolMembers(pool, schema).length} 人</span>
               </button>
             ))}
           </div>
@@ -216,7 +314,7 @@ function PresetPoolPanel() {
                     {selectedPool.id === DEFAULT_POOL_ID && <span className="status-tag closed">默认池</span>}
                   </div>
                   <div className="pool-meta">
-                    <span>{selectedPool.numbers.length} 个号码</span>
+                    <span>{getPoolMembers(selectedPool, schema).length} 个成员</span>
                     <span>ID: {selectedPool.id}</span>
                   </div>
                 </div>
@@ -227,7 +325,7 @@ function PresetPoolPanel() {
                   <button
                     className="btn-danger"
                     onClick={handleClear}
-                    disabled={loading || selectedPool.numbers.length === 0}
+                    disabled={loading || getPoolMembers(selectedPool, schema).length === 0}
                   >
                     清空
                   </button>
@@ -243,7 +341,7 @@ function PresetPoolPanel() {
 
               <div className="pool-mode-tabs">
                 {([
-                  ['preview', '号码预览'],
+                  ['preview', isMultiFieldSchema ? '成员预览' : '号码预览'],
                   ['generate', '自动生成'],
                   ['import', '批量导入'],
                 ] as [PoolWorkMode, string][]).map(([mode, label]) => (
@@ -251,32 +349,90 @@ function PresetPoolPanel() {
                     key={mode}
                     type="button"
                     className={workMode === mode ? 'active' : ''}
-                    onClick={() => setWorkMode(mode)}
+                    disabled={mode === 'generate' && isMultiFieldSchema}
+                    title={mode === 'generate' && isMultiFieldSchema ? autoGenerateBlockReason : undefined}
+                    onClick={() => {
+                      if (mode === 'generate' && autoGenerateBlockReason) {
+                        setPoolMessage(autoGenerateBlockReason);
+                        return;
+                      }
+                      setWorkMode(mode);
+                    }}
                   >
                     {label}
                   </button>
                 ))}
               </div>
 
+              {poolMessage && (
+                <div className={`pool-message ${isPoolMessageError(poolMessage) ? 'error' : 'success'}`}>
+                  {poolMessage}
+                </div>
+              )}
+
               {workMode === 'preview' && (
                 <div className="pool-action-panel">
                   <div className="pool-panel-title">
-                    <span>号码预览</span>
-                    <span>{previewNumbers.length} / {selectedPool.numbers.length}</span>
+                    <span>成员预览</span>
+                    <span>{previewMembers.length} / {getPoolMembers(selectedPool, schema).length}</span>
                   </div>
                   <input
                     value={previewQuery}
                     onChange={e => setPreviewQuery(e.target.value)}
-                    placeholder="搜索号码"
+                    placeholder="搜索成员"
                     className="pool-search-input"
                   />
-                  <div className="pool-numbers pool-numbers-grid">
-                    {previewNumbers.length === 0 ? (
-                      <span className="pool-empty-text">没有匹配的号码</span>
-                    ) : (
-                      previewNumbers.map(number => <span key={number}>{number}</span>)
-                    )}
-                  </div>
+                  {!isMultiFieldSchema ? (
+                    <div className="pool-numbers pool-numbers-grid">
+                      {previewMembers.length === 0 ? (
+                        <span className="pool-empty-text">没有匹配的成员</span>
+                      ) : (
+                        previewMembers.map(member => <span key={member.id}>{getMemberText(member, schema)}</span>)
+                      )}
+                    </div>
+                  ) : (
+                    <div className="pool-member-table-wrap">
+                      <table className="pool-member-table">
+                        <thead>
+                          <tr>
+                            <th>展示</th>
+                            {visibleFields.map(field => <th key={field.key}>{field.label}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {previewMembers.length === 0 ? (
+                            <tr>
+                              <td colSpan={visibleFields.length + 1} className="pool-member-empty">没有匹配的成员</td>
+                            </tr>
+                          ) : (
+                            previewMembers.map((member) => {
+                              const missingFields = getMissingRequiredFields(member, schema);
+                              return (
+                                <tr key={member.id} className={missingFields.length > 0 ? 'pool-member-row-warning' : undefined}>
+                                  <td>
+                                    <span className="pool-member-display-text">{getMemberText(member, schema)}</span>
+                                    {missingFields.length > 0 && (
+                                      <span className="pool-member-warning">
+                                        缺少：{missingFields.map(field => field.label).join('、')}
+                                      </span>
+                                    )}
+                                  </td>
+                                  {visibleFields.map(field => (
+                                    <td
+                                      key={field.key}
+                                      className={field.required && !member.values[field.key] ? 'pool-member-cell-warning' : undefined}
+                                    >
+                                      {member.values[field.key] || (field.required ? '未填写' : '')}
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -321,8 +477,12 @@ function PresetPoolPanel() {
                     </label>
                   </div>
                   <div className="pool-action-footer">
-                    <span>生成会覆盖当前用户池，并清空已有抽奖记录。</span>
-                    <button className="btn-primary" onClick={handleGenerate} disabled={loading}>
+                    <span>
+                      {autoGenerateBlockReason
+                        ? autoGenerateBlockReason
+                        : '生成会覆盖当前用户池，并清空已有抽奖记录。'}
+                    </span>
+                    <button className="btn-primary" onClick={handleGenerate} disabled={loading || Boolean(autoGenerateBlockReason)}>
                       生成到当前池
                     </button>
                   </div>
@@ -333,17 +493,19 @@ function PresetPoolPanel() {
                 <div className="pool-action-panel">
                   <div className="pool-panel-title">
                     <span>批量导入</span>
-                    <span>{manualInput.split(/[,\n\r\s]+/).filter(Boolean).length} 个待导入</span>
+                    <span>{importMembers.length} 个待导入</span>
                   </div>
                   <textarea
                     value={manualInput}
                     onChange={e => setManualInput(e.target.value)}
-                    placeholder="输入号码，逗号、空格或换行分隔"
+                    placeholder={!isMultiFieldSchema ? '输入号码，逗号、空格或换行分隔' : `可粘贴 CSV，例如：\n${importFieldOrder.map(field => field.key).join(',')}\n${importFieldOrder.map((field, index) => index === 0 ? '001' : field.label).join(',')}`}
                     rows={10}
                   />
                   <div className="pool-action-footer">
-                    <span>导入会覆盖当前用户池，并清空已有抽奖记录。</span>
-                    <button className="btn-primary" onClick={handleManualSet} disabled={loading || !manualInput.trim()}>
+                    <span className={importError ? 'pool-footer-error' : ''}>
+                      {importError || '导入会覆盖当前用户池，并清空已有抽奖记录。'}
+                    </span>
+                    <button className="btn-primary" onClick={handleManualSet} disabled={loading || !manualInput.trim() || Boolean(importError)}>
                       导入到当前池
                     </button>
                   </div>

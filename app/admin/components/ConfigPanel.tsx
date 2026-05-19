@@ -18,6 +18,7 @@ interface FontColorConfig {
 interface Config {
   allowRepeatWin: boolean;
   numbersPerRow: number;
+  participantSchema?: ParticipantSchema;
   numberPoolConfig: {
     type: 'auto' | 'manual';
     start?: number;
@@ -45,6 +46,27 @@ interface Prize {
   poolBindings?: PoolBinding[];
 }
 
+type PoolFieldType = 'text' | 'number' | 'phone' | 'email' | 'select';
+type SettingSection = 'basic' | 'participants' | 'display' | 'calibration';
+
+interface PoolFieldDefinition {
+  key: string;
+  label: string;
+  type: PoolFieldType;
+  required: boolean;
+  unique?: boolean;
+  visible?: boolean;
+  searchable?: boolean;
+  mask?: 'none' | 'phone';
+}
+
+interface ParticipantSchema {
+  schemaVersion: 2;
+  fields: PoolFieldDefinition[];
+  uniqueField: string;
+  displayTemplate: string;
+}
+
 interface PoolBinding {
   poolId: string;
   probability: number;
@@ -62,6 +84,7 @@ interface UserPool {
   id: string;
   name: string;
   numbers: string[];
+  members?: { id: string; values: Record<string, string> }[];
 }
 
 const DEFAULT_FONT_SIZES: FontSizeConfig = {
@@ -77,6 +100,24 @@ const DEFAULT_FONT_COLORS: FontColorConfig = {
   numberCard: '#ffd700',
 };
 
+const DEFAULT_PARTICIPANT_SCHEMA: ParticipantSchema = {
+  schemaVersion: 2,
+  uniqueField: 'number',
+  displayTemplate: '{number}',
+  fields: [
+    {
+      key: 'number',
+      label: '号码',
+      type: 'text',
+      required: true,
+      unique: true,
+      visible: true,
+      searchable: true,
+      mask: 'none',
+    },
+  ],
+};
+
 export default function ConfigPanel() {
   const [config, setConfig] = useState<Config | null>(null);
   const [allPrizes, setAllPrizes] = useState<Prize[]>([]);
@@ -85,6 +126,8 @@ export default function ConfigPanel() {
   const [calMessage, setCalMessage] = useState('');
   const [numberPool, setNumberPool] = useState<string[]>([]);
   const [userPools, setUserPools] = useState<UserPool[]>([]);
+  const [schemaMessage, setSchemaMessage] = useState('');
+  const [activeSection, setActiveSection] = useState<SettingSection>('basic');
 
   useEffect(() => {
     fetch('/api/admin/config')
@@ -175,19 +218,99 @@ export default function ConfigPanel() {
     setConfig({ ...config, fontColors: newColors });
   };
 
+  const participantSchema = config?.participantSchema || DEFAULT_PARTICIPANT_SCHEMA;
+
+  const updateParticipantSchemaLocal = (participantSchema: ParticipantSchema) => {
+    if (!config) return;
+    setConfig({ ...config, participantSchema });
+  };
+
+  const handleFieldChange = (index: number, patch: Partial<PoolFieldDefinition>) => {
+    const fields = participantSchema.fields.map((field, i) => i === index ? { ...field, ...patch } : field);
+    updateParticipantSchemaLocal({ ...participantSchema, fields });
+  };
+
+  const handleAddField = () => {
+    const nextIndex = participantSchema.fields.length + 1;
+    updateParticipantSchemaLocal({
+      ...participantSchema,
+      fields: [
+        ...participantSchema.fields,
+        {
+          key: `field${nextIndex}`,
+          label: `字段${nextIndex}`,
+          type: 'text',
+          required: false,
+          visible: true,
+          searchable: true,
+          mask: 'none',
+        },
+      ],
+    });
+  };
+
+  const handleRemoveField = (index: number) => {
+    const field = participantSchema.fields[index];
+    if (!field || field.key === participantSchema.uniqueField) return;
+    updateParticipantSchemaLocal({
+      ...participantSchema,
+      fields: participantSchema.fields.filter((_, i) => i !== index),
+    });
+  };
+
+  const handleSaveParticipantSchema = async () => {
+    if (!config) return;
+    setSchemaMessage('');
+    const res = await fetch('/api/admin/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participantSchema }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setSchemaMessage(data.error || '保存失败');
+      return;
+    }
+    setConfig(data.config);
+    setSchemaMessage('已保存');
+  };
+
   if (!config) return <div>加载中...</div>;
 
   const fontSizes = config.fontSizes || DEFAULT_FONT_SIZES;
   const fontColors = config.fontColors || DEFAULT_FONT_COLORS;
   const displaySettings = config.displaySettings || { showQuantity: true, showSponsor: true, showNumberBorder: true, maskPhone: false };
+  const settingsNav: { id: SettingSection; label: string; description: string }[] = [
+    { id: 'basic', label: '基本设置', description: '中奖规则与布局数量' },
+    { id: 'participants', label: '参与者字段', description: `${participantSchema.fields.length} 个字段` },
+    { id: 'display', label: '展示样式', description: '显示项、颜色、字体' },
+    { id: 'calibration', label: '抽样校准', description: `${Object.keys(config.calibration || {}).length} 个奖项` },
+  ];
 
   return (
     <div className="manager-panel">
       <h2>系统设置</h2>
 
-      {/* 基本设置 */}
-      <div className="admin-card">
-        <div className="admin-card-header">基本设置</div>
+      <div className="settings-layout">
+        <aside className="settings-sidebar" aria-label="系统设置分组">
+          {settingsNav.map(item => (
+            <button
+              key={item.id}
+              type="button"
+              className={`settings-nav-item ${activeSection === item.id ? 'active' : ''}`}
+              onClick={() => setActiveSection(item.id)}
+            >
+              <span>{item.label}</span>
+              <small>{item.description}</small>
+            </button>
+          ))}
+        </aside>
+
+        <section className="settings-content">
+          {activeSection === 'basic' && (
+            <div className="settings-section-stack">
+              <div className="admin-card">
+                <div className="admin-card-header">基本设置</div>
 
         <div className="config-item">
           <label>
@@ -220,10 +343,151 @@ export default function ConfigPanel() {
           <p className="config-hint">抽奖展示页面每行显示的号码数量（1-20）</p>
         </div>
       </div>
+            </div>
+          )}
 
-      {/* 显示设置 */}
-      <div className="admin-card">
-        <div className="admin-card-header">显示设置</div>
+          {activeSection === 'participants' && (
+            <div className="settings-section-stack">
+              <div className="admin-card">
+                <div className="admin-card-header">参与者字段</div>
+        <p className="config-hint" style={{ marginTop: 0 }}>
+          默认只使用号码字段。新增字段后，所有用户池、签到登记、中奖展示和导出都会按这套字段规范处理。
+        </p>
+
+        <div className="participant-schema-controls">
+          <label>
+            <span>唯一字段</span>
+            <select
+              value={participantSchema.uniqueField}
+              onChange={(e) => updateParticipantSchemaLocal({ ...participantSchema, uniqueField: e.target.value })}
+            >
+              {participantSchema.fields.map(field => (
+                <option key={field.key} value={field.key}>{field.label} ({field.key})</option>
+              ))}
+            </select>
+            <small></small>
+          </label>
+
+          <label>
+            <span>展示模板</span>
+            <input
+              value={participantSchema.displayTemplate}
+              onChange={(e) => updateParticipantSchemaLocal({ ...participantSchema, displayTemplate: e.target.value })}
+              placeholder="{number}"
+            />
+            <small>例如 {'{name}（{number}）'}</small>
+          </label>
+        </div>
+
+        <div className="participant-fields">
+          <div className="participant-field-header" aria-hidden="true">
+            <span>字段 Key</span>
+            <span>显示名称</span>
+            <span>类型</span>
+            <span>选项</span>
+            <span>脱敏</span>
+            <span>操作</span>
+          </div>
+          {participantSchema.fields.map((field, index) => (
+            <div
+              key={`participant-field-${index}`}
+              className="participant-field-row"
+            >
+              <label className="participant-field-cell">
+                <span>字段 Key</span>
+                <input
+                  value={field.key}
+                  onChange={(e) => handleFieldChange(index, { key: e.target.value })}
+                  placeholder="字段 key"
+                  disabled={field.key === participantSchema.uniqueField}
+                />
+              </label>
+              <label className="participant-field-cell">
+                <span>显示名称</span>
+                <input
+                  value={field.label}
+                  onChange={(e) => handleFieldChange(index, { label: e.target.value })}
+                  placeholder="显示名称"
+                />
+              </label>
+              <label className="participant-field-cell">
+                <span>类型</span>
+                <select
+                  value={field.type}
+                  onChange={(e) => handleFieldChange(index, { type: e.target.value as PoolFieldType })}
+                >
+                  <option value="text">文本</option>
+                  <option value="number">数字</option>
+                  <option value="phone">手机号</option>
+                  <option value="email">邮箱</option>
+                  <option value="select">选项</option>
+                </select>
+              </label>
+              <div className="participant-field-options">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={field.required || field.key === participantSchema.uniqueField}
+                    disabled={field.key === participantSchema.uniqueField}
+                    onChange={(e) => handleFieldChange(index, { required: e.target.checked })}
+                  />
+                  必填
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={field.visible ?? true}
+                    onChange={(e) => handleFieldChange(index, { visible: e.target.checked })}
+                  />
+                  展示
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={field.searchable ?? true}
+                    onChange={(e) => handleFieldChange(index, { searchable: e.target.checked })}
+                  />
+                  搜索
+                </label>
+              </div>
+              <label className="participant-field-cell">
+                <span>脱敏</span>
+                <select
+                  value={field.mask || 'none'}
+                  onChange={(e) => handleFieldChange(index, { mask: e.target.value as 'none' | 'phone' })}
+                >
+                  <option value="none">不脱敏</option>
+                  <option value="phone">手机号脱敏</option>
+                </select>
+              </label>
+              <button
+                className="btn-danger btn-sm participant-field-delete"
+                onClick={() => handleRemoveField(index)}
+                disabled={field.key === participantSchema.uniqueField}
+              >
+                删除
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="btns" style={{ marginTop: 14 }}>
+          <button onClick={handleAddField}>新增字段</button>
+          <button className="btn-primary" onClick={handleSaveParticipantSchema}>保存字段设置</button>
+        </div>
+        {schemaMessage && (
+          <p style={{ color: schemaMessage === '已保存' ? '#4ade80' : '#ff6b6b', fontSize: 13, marginTop: 10 }}>
+            {schemaMessage}
+          </p>
+        )}
+      </div>
+            </div>
+          )}
+
+          {activeSection === 'display' && (
+            <div className="settings-section-stack">
+              <div className="admin-card">
+                <div className="admin-card-header">显示设置</div>
 
         <div className="config-item">
           <label>
@@ -332,10 +596,13 @@ export default function ConfigPanel() {
         ))}
         <p className="config-hint">设置展示页面的字体大小（10-200px），修改后自动保存</p>
       </div>
+            </div>
+          )}
 
-      {/* 抽样校准 */}
-      <div className="admin-card" style={{ marginTop: 16 }}>
-        <div className="admin-card-header">抽样校准</div>
+          {activeSection === 'calibration' && (
+            <div className="settings-section-stack">
+              <div className="admin-card">
+                <div className="admin-card-header">抽样校准</div>
         <p className="config-hint" style={{ marginTop: 0, marginBottom: 14 }}>
           设置指定奖项的校准样本序列，用于结果验证
         </p>
@@ -420,6 +687,10 @@ export default function ConfigPanel() {
             })}
           </ul>
         )}
+      </div>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

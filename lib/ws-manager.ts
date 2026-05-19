@@ -1,5 +1,6 @@
 // WebSocket 广播工具
 // 通过 HTTP 调用内部广播端点
+import { DisplayParticipant } from './participants';
 
 export interface WSMessage {
   type: 'state_update' | 'rolling_start' | 'rolling_stop' | 'reset' | 'show_qrcode';
@@ -31,8 +32,8 @@ export function broadcastRollingStart(count: number, prizeId: string): void {
   broadcast({ type: 'rolling_start', payload: { count, prizeId } });
 }
 
-export function broadcastRollingStop(winners: string[]): void {
-  broadcast({ type: 'rolling_stop', payload: { winners } });
+export function broadcastRollingStop(winners: string[], winnerDetails?: DisplayParticipant[]): void {
+  broadcast({ type: 'rolling_stop', payload: { winners, winnerDetails } });
 }
 
 export function broadcastReset(): void {

@@ -1,5 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import {
+  DEFAULT_PARTICIPANT_SCHEMA,
+  ParticipantSchema,
+  WinnerSnapshot,
+  normalizeParticipantSchema,
+} from './participants';
 
 // 动态获取数据目录（支持打包后的环境变量）
 function getDataDir(): string {
@@ -64,6 +70,7 @@ export interface Prize {
   color: string;
   sponsor: string;
   image?: string;
+  requireCheckIn?: boolean;
 }
 
 export interface Round {
@@ -82,7 +89,8 @@ export interface PoolBinding {
 export interface WinnerInfo {
   level: string;
   name: string;
-  numbers: string[];
+  winners: WinnerSnapshot[];
+  numbers?: string[];
 }
 
 export interface LotteryState {
@@ -90,6 +98,7 @@ export interface LotteryState {
   prizeRemaining: Record<string, number>;
   winnersByPrize: Record<string, WinnerInfo>;
   allWinners?: string[];
+  allWinnerIds?: string[];
 }
 
 export interface PrizesData {
@@ -134,6 +143,7 @@ export interface Config {
   allowRepeatWin: boolean;
   numbersPerRow: number;
   numberPoolConfig: NumberPoolConfig;
+  participantSchema: ParticipantSchema;
   fontSizes?: FontSizeConfig;
   displaySettings?: DisplaySettings;
   fontColors?: FontColorConfig;
@@ -174,10 +184,12 @@ const DEFAULT_LOTTERY_STATE: LotteryState = {
   prizeRemaining: {},
   winnersByPrize: {},
   allWinners: [],
+  allWinnerIds: [],
 };
 const DEFAULT_CONFIG: Config = {
   allowRepeatWin: false,
   numbersPerRow: 10,
+  participantSchema: DEFAULT_PARTICIPANT_SCHEMA,
   numberPoolConfig: {
     type: 'auto',
     start: 1,
@@ -213,9 +225,79 @@ export function getPrizesData(): PrizesData {
   return safeReadJSON<PrizesData>(getPrizesFile(), DEFAULT_PRIZES_DATA);
 }
 
+function normalizeWinnerInfo(rawInfo: WinnerInfo | undefined): WinnerInfo | undefined {
+  if (!rawInfo) return undefined;
+  const legacyNumbers = Array.isArray(rawInfo.numbers)
+    ? rawInfo.numbers.map(String).filter(Boolean)
+    : [];
+  const winners = Array.isArray(rawInfo.winners)
+    ? rawInfo.winners
+        .map((winner) => {
+          const id = typeof winner.id === 'string' ? winner.id.trim() : '';
+          if (!id) return null;
+          const snapshot: WinnerSnapshot = {
+            id,
+            displayText: typeof winner.displayText === 'string' && winner.displayText.trim()
+              ? winner.displayText.trim()
+              : id,
+            values: winner.values && typeof winner.values === 'object'
+              ? Object.fromEntries(Object.entries(winner.values).map(([key, value]) => [key, String(value)]))
+              : { number: id },
+            wonAt: typeof winner.wonAt === 'number' ? winner.wonAt : 0,
+          };
+          if (typeof winner.poolId === 'string') snapshot.poolId = winner.poolId;
+          if (typeof winner.poolName === 'string') snapshot.poolName = winner.poolName;
+          return snapshot;
+        })
+        .filter((winner): winner is WinnerSnapshot => Boolean(winner))
+    : [];
+
+  if (winners.length === 0 && legacyNumbers.length > 0) {
+    winners.push(...legacyNumbers.map(number => ({
+      id: number,
+      displayText: number,
+      values: { number },
+      wonAt: 0,
+    })));
+  }
+
+  const numbers = legacyNumbers.length > 0 ? legacyNumbers : winners.map(winner => winner.id);
+  return {
+    level: rawInfo.level,
+    name: rawInfo.name,
+    winners,
+    numbers,
+  };
+}
+
+function normalizeLotteryState(state: LotteryState): LotteryState {
+  const winnersByPrize: Record<string, WinnerInfo> = {};
+  Object.entries(state.winnersByPrize || {}).forEach(([prizeId, info]) => {
+    const normalizedInfo = normalizeWinnerInfo(info);
+    if (normalizedInfo) {
+      winnersByPrize[prizeId] = normalizedInfo;
+    }
+  });
+
+  const flattenedWinnerIds = Object.values(winnersByPrize).flatMap(info => info.winners.map(winner => winner.id));
+  const allWinnerIds = Array.isArray(state.allWinnerIds) && state.allWinnerIds.length > 0
+    ? state.allWinnerIds.map(String)
+    : (Array.isArray(state.allWinners) && state.allWinners.length > 0
+      ? state.allWinners.map(String)
+      : flattenedWinnerIds);
+
+  return {
+    numberPool: Array.isArray(state.numberPool) ? state.numberPool.map(String) : [],
+    prizeRemaining: state.prizeRemaining || {},
+    winnersByPrize,
+    allWinners: Array.isArray(state.allWinners) ? state.allWinners.map(String) : allWinnerIds,
+    allWinnerIds,
+  };
+}
+
 // 读取抽奖状态
 export function getLotteryState(): LotteryState {
-  return safeReadJSON<LotteryState>(getStateFile(), DEFAULT_LOTTERY_STATE);
+  return normalizeLotteryState(safeReadJSON<LotteryState>(getStateFile(), DEFAULT_LOTTERY_STATE));
 }
 
 // 保存抽奖状态
@@ -230,7 +312,16 @@ export function getConfig(): Config {
     ...DEFAULT_CONFIG.registerSettings!,
     ...config.registerSettings,
   };
-  return { ...config, registerSettings };
+  return {
+    ...DEFAULT_CONFIG,
+    ...config,
+    numberPoolConfig: {
+      ...DEFAULT_CONFIG.numberPoolConfig,
+      ...config.numberPoolConfig,
+    },
+    participantSchema: normalizeParticipantSchema(config.participantSchema),
+    registerSettings,
+  };
 }
 
 // 保存配置

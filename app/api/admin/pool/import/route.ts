@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DEFAULT_USER_POOL_ID, getUserPools, normalizePoolNumbers, resetLotteryRecords, saveUserPools } from '@/lib/user-pools';
+import { DEFAULT_USER_POOL_ID, getUserPools, resetLotteryRecords, saveUserPools } from '@/lib/user-pools';
+import { getConfig } from '@/lib/lottery';
+import { getMemberIds, getRequiredMemberError, parseMembersFromText } from '@/lib/participants';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
 
@@ -15,21 +17,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 解析CSV
-    const numbers = csv
-      .split(/[,\n\r]+/)
-      .map(n => n.trim())
-      .filter(Boolean);
+    const schema = getConfig().participantSchema;
+    const members = parseMembersFromText(csv, schema, 'import');
 
-    if (numbers.length === 0) {
+    if (members.length === 0) {
       return NextResponse.json(
         { error: 'No valid numbers found' },
         { status: 400 }
       );
     }
 
-    // 去重
-    const uniqueNumbers = normalizePoolNumbers(numbers);
+    const memberError = getRequiredMemberError(members, schema);
+    if (memberError) {
+      return NextResponse.json({ error: memberError }, { status: 400 });
+    }
 
     // 替换默认用户池并清除旧的抽奖记录
     const pools = getUserPools();
@@ -39,12 +40,14 @@ export async function POST(request: NextRequest) {
       pools.unshift({
         id: DEFAULT_USER_POOL_ID,
         name: '默认预设池',
-        numbers: uniqueNumbers,
+        schemaVersion: 2,
+        members,
+        numbers: getMemberIds(members),
         createdAt: now,
         updatedAt: now,
       });
     } else {
-      pools[index] = { ...pools[index], numbers: uniqueNumbers, updatedAt: now };
+      pools[index] = { ...pools[index], members, numbers: getMemberIds(members), updatedAt: now };
     }
     saveUserPools(pools);
     resetLotteryRecords();
@@ -52,8 +55,8 @@ export async function POST(request: NextRequest) {
     broadcastStateUpdate(getFullState());
 
     return NextResponse.json({
-      numberPool: uniqueNumbers,
-      count: uniqueNumbers.length,
+      numberPool: getMemberIds(members),
+      count: members.length,
     });
   } catch (error) {
     console.error('Error:', error);

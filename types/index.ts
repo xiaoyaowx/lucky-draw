@@ -11,6 +11,7 @@ export interface Prize {
   color: string;
   sponsor: string;
   image?: string;
+  requireCheckIn?: boolean;
 }
 
 // 轮次
@@ -27,11 +28,56 @@ export interface PoolBinding {
   probability: number;
 }
 
+export type PoolFieldType = 'text' | 'number' | 'phone' | 'email' | 'select';
+
+export interface PoolFieldDefinition {
+  key: string;
+  label: string;
+  type: PoolFieldType;
+  required: boolean;
+  unique?: boolean;
+  visible?: boolean;
+  searchable?: boolean;
+  mask?: 'none' | 'phone';
+  options?: string[];
+}
+
+export interface ParticipantSchema {
+  schemaVersion: 2;
+  fields: PoolFieldDefinition[];
+  uniqueField: string;
+  displayTemplate: string;
+}
+
+export interface PoolMember {
+  id: string;
+  values: Record<string, string>;
+  createdAt?: number;
+  updatedAt?: number;
+  source?: 'manual' | 'import' | 'generate' | 'register' | 'migration';
+}
+
+export interface DisplayParticipant {
+  id: string;
+  displayText: string;
+  values?: Record<string, string>;
+}
+
+export interface WinnerSnapshot {
+  id: string;
+  poolId?: string;
+  poolName?: string;
+  displayText: string;
+  values: Record<string, string>;
+  wonAt: number;
+}
+
 // 中奖信息
 export interface WinnerInfo {
   level: string;
   name: string;
-  numbers: string[];
+  winners: WinnerSnapshot[];
+  numbers?: string[];
 }
 
 // 展示状态
@@ -41,10 +87,12 @@ export interface DisplayState {
   drawCount: number;
   isRolling: boolean;
   winners: string[];
+  winnerDetails?: DisplayParticipant[];
   rounds: Round[];
   prizeRemaining: Record<string, number>;
   winnersByPrize: Record<string, WinnerInfo>;
   numberPool: string[];
+  rollingPool?: DisplayParticipant[];
   numbersPerRow: number;
 }
 
@@ -72,6 +120,7 @@ export interface RollingStartPayload {
 
 export interface RollingStopPayload {
   winners: string[];
+  winnerDetails?: DisplayParticipant[];
 }
 
 // API 请求类型
@@ -101,6 +150,7 @@ export interface ConfigUpdateRequest {
     excludeContains: string[];
     excludeExact: string[];
   };
+  participantSchema?: ParticipantSchema;
   registerSettings?: {
     length: number;
     allowLetters: boolean;
@@ -115,6 +165,7 @@ export interface PrizeCreateRequest {
   color: string;
   sponsor: string;
   image?: string;
+  requireCheckIn?: boolean;
 }
 
 export interface RoundCreateRequest {

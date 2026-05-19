@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateDisplayState, getDisplayState } from '@/lib/display-state';
 import { getPrizesData, getLotteryState, getConfig } from '@/lib/lottery';
 import { getAvailablePoolsForRound, getAvailableUnion } from '@/lib/pool-selection';
+import { createDisplayParticipant } from '@/lib/participants';
 import { broadcastRollingStart, broadcastStateUpdate } from '@/lib/ws-manager';
 import { getFullState } from '@/lib/full-state';
 
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
 
     const availablePools = getAvailablePoolsForRound(targetRound, lotteryState, config, prizeId);
     const availablePool = getAvailableUnion(availablePools);
+    const rollingPool = availablePool.map(candidate => createDisplayParticipant(candidate, config.participantSchema));
 
     if (availablePool.length === 0) {
       return NextResponse.json({ error: '绑定的用户池中没有可用号码' }, { status: 400 });
@@ -54,7 +56,8 @@ export async function POST(request: NextRequest) {
       drawCount: count,
       currentPrizeId: prizeId,
       winners: [],
-      rollingPool: availablePool,
+      winnerDetails: [],
+      rollingPool,
     });
 
     // 广播完整状态（让展示屏拿到 rollingPool，用于本地滚动显示）

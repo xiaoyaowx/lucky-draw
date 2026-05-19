@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 // 新增奖品
 export async function POST(request: NextRequest) {
   try {
-    const { roundId, level, name, quantity, color, sponsor, image } = await request.json();
+    const { roundId, level, name, quantity, color, sponsor, image, requireCheckIn } = await request.json();
 
     if (!roundId || !level || !name || quantity === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       color: color || '#FFD700',
       sponsor: sponsor || '',
       ...(image ? { image } : {}),
+      ...(requireCheckIn ? { requireCheckIn: true } : {}),
     };
 
     data.rounds[roundIndex].prizes.push(newPrize);

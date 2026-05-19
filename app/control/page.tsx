@@ -9,6 +9,7 @@ interface Prize {
   quantity: number;
   color: string;
   sponsor: string;
+  requireCheckIn?: boolean;
 }
 
 interface Round {
@@ -35,8 +36,16 @@ interface AvailablePool {
 interface WinnerInfo {
   level: string;
   name: string;
-  numbers: string[];
+  winners?: WinnerSnapshot[];
+  numbers?: string[];
   roundName?: string;
+}
+
+interface WinnerSnapshot {
+  id: string;
+  displayText: string;
+  values: Record<string, string>;
+  wonAt: number;
 }
 
 interface ControlState {
@@ -54,6 +63,18 @@ interface ControlState {
   currentRoundPoolBindings?: PoolBinding[];
   availablePools?: AvailablePool[];
   allowRepeatWin?: boolean;
+}
+
+function getWinnerIds(info: WinnerInfo): string[] {
+  return info.winners && info.winners.length > 0
+    ? info.winners.map(winner => winner.id)
+    : (info.numbers || []);
+}
+
+function getWinnerTexts(info: WinnerInfo): string[] {
+  return info.winners && info.winners.length > 0
+    ? info.winners.map(winner => winner.displayText || winner.id)
+    : (info.numbers || []);
 }
 
 export default function ControlPage() {
@@ -99,11 +120,16 @@ export default function ControlPage() {
   };
 
   const updateState = async (updates: Partial<ControlState>) => {
-    await fetch('/api/control/state', {
+    const res = await fetch('/api/control/state', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
+    const data = await res.json();
+    if (res.ok) {
+      setState(data);
+    }
+    return data;
   };
 
   const handleRoundChange = async (roundId: number) => {
@@ -114,14 +140,15 @@ export default function ControlPage() {
     fetchState();
   };
 
-  const handlePrizeChange = (prizeId: string) => {
+  const handlePrizeChange = async (prizeId: string) => {
     if (isRolling) return;
     setCurrentPrizeId(prizeId);
-    const remaining = state?.prizeRemaining[prizeId] || 0;
-    const available = state?.availablePoolSize ?? remaining;
+    const nextState = await updateState({ currentPrizeId: prizeId });
+    const remaining = nextState?.prizeRemaining?.[prizeId] || 0;
+    const available = nextState?.availablePoolSize ?? remaining;
     const newCount = Math.min(remaining, available, 30);
     setDrawCount(newCount);
-    updateState({ currentPrizeId: prizeId, drawCount: newCount });
+    await updateState({ currentPrizeId: prizeId, drawCount: newCount });
   };
 
   const handleCountChange = (count: number) => {
@@ -229,7 +256,7 @@ export default function ControlPage() {
   };
 
   const totalWinners = state
-    ? Object.values(state.winnersByPrize).reduce((s, p) => s + p.numbers.length, 0)
+    ? Object.values(state.winnersByPrize).reduce((s, p) => s + getWinnerIds(p).length, 0)
     : 0;
 
   // 根据奖品ID获取轮次名称
@@ -252,7 +279,7 @@ export default function ControlPage() {
     content += '=' .repeat(50) + '\n\n';
 
     // 按轮次分组
-    const byRound: Record<string, { level: string; name: string; numbers: string[] }[]> = {};
+    const byRound: Record<string, WinnerInfo[]> = {};
 
     Object.entries(state.winnersByPrize).forEach(([prizeId, info]) => {
       const roundName = getRoundNameByPrizeId(prizeId);
@@ -265,8 +292,9 @@ export default function ControlPage() {
     Object.entries(byRound).forEach(([roundName, prizes]) => {
       content += `【${roundName}】\n`;
       prizes.forEach(p => {
-        content += `  ${p.level} - ${p.name} (${p.numbers.length}人)\n`;
-        content += `  中奖号码: ${p.numbers.join(', ')}\n\n`;
+        const winnerTexts = getWinnerTexts(p);
+        content += `  ${p.level} - ${p.name} (${winnerTexts.length}人)\n`;
+        content += `  中奖名单: ${winnerTexts.join(', ')}\n\n`;
       });
     });
 
@@ -320,6 +348,7 @@ export default function ControlPage() {
               >
                 <span style={{ color: p.color }}>{p.level}</span>
                 <span className="pname">{p.name}</span>
+                {p.requireCheckIn && <span className="prize-tag">仅已签到</span>}
                 <span>{rem}/{p.quantity}</span>
               </div>
             );
@@ -463,8 +492,8 @@ export default function ControlPage() {
               <div className="round-title">{round.name}</div>
               {roundPrizes.map(([id, d]) => (
                 <div key={id} className="winner-group">
-                  <div className="wg-header">{d.level} - {d.name} ({d.numbers.length})</div>
-                  <div className="wg-nums">{d.numbers.join(', ')}</div>
+                  <div className="wg-header">{d.level} - {d.name} ({getWinnerIds(d).length})</div>
+                  <div className="wg-nums">{getWinnerTexts(d).join(', ')}</div>
                 </div>
               ))}
             </div>

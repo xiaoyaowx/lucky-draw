@@ -5,6 +5,7 @@ import {
   saveConfig,
 } from '@/lib/lottery';
 import { DEFAULT_USER_POOL_ID, getUserPools, resetLotteryRecords, saveUserPools } from '@/lib/user-pools';
+import { getAutoGenerateBlockReason, getMemberIds, normalizeMembers } from '@/lib/participants';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
 
@@ -15,6 +16,13 @@ export async function POST(request: NextRequest) {
     const { start, end, excludePatterns, excludeContains, excludeExact } = body;
 
     const config = getConfig();
+    const blockReason = getAutoGenerateBlockReason(config.participantSchema);
+    if (blockReason) {
+      return NextResponse.json(
+        { error: blockReason },
+        { status: 400 },
+      );
+    }
 
     // 如果提供了参数，更新配置
     if (start !== undefined) config.numberPoolConfig.start = start;
@@ -38,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     // 生成号码池
     const numberPool = generateNumberPoolFromConfig(config.numberPoolConfig);
+    const members = normalizeMembers(numberPool, config.participantSchema, 'generate');
 
     // 替换默认用户池并清除旧的抽奖记录
     const pools = getUserPools();
@@ -47,12 +56,14 @@ export async function POST(request: NextRequest) {
       pools.unshift({
         id: DEFAULT_USER_POOL_ID,
         name: '默认预设池',
-        numbers: numberPool,
+        schemaVersion: 2,
+        members,
+        numbers: getMemberIds(members),
         createdAt: now,
         updatedAt: now,
       });
     } else {
-      pools[index] = { ...pools[index], numbers: numberPool, updatedAt: now };
+      pools[index] = { ...pools[index], members, numbers: getMemberIds(members), updatedAt: now };
     }
     saveUserPools(pools);
     resetLotteryRecords();

@@ -41,7 +41,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { level, name, quantity, color, sponsor, image } = await request.json();
+    const { level, name, quantity, color, sponsor, image, requireCheckIn } = await request.json();
 
     const data = getPrizesData();
     let found = false;
@@ -55,6 +55,13 @@ export async function PUT(
         if (quantity !== undefined) round.prizes[prizeIndex].quantity = quantity;
         if (color) round.prizes[prizeIndex].color = color;
         if (sponsor !== undefined) round.prizes[prizeIndex].sponsor = sponsor;
+        if (requireCheckIn !== undefined) {
+          if (requireCheckIn) {
+            round.prizes[prizeIndex].requireCheckIn = true;
+          } else {
+            delete round.prizes[prizeIndex].requireCheckIn;
+          }
+        }
         if (image !== undefined) {
           // 如果图片被更换或清除，删除旧图片
           const oldImage = round.prizes[prizeIndex].image;
@@ -116,11 +123,18 @@ export async function DELETE(
 
     // 从抽奖状态中移除
     const state = getLotteryState();
-    const removed = state.winnersByPrize[id]?.numbers || [];
+    const removedInfo = state.winnersByPrize[id];
+    const removed = [
+      ...(removedInfo?.winners || []).map(winner => winner.id),
+      ...(removedInfo?.numbers || []),
+    ];
     delete state.prizeRemaining[id];
     delete state.winnersByPrize[id];
     if (state.allWinners && removed.length > 0) {
       state.allWinners = state.allWinners.filter(n => !removed.includes(n));
+    }
+    if (state.allWinnerIds && removed.length > 0) {
+      state.allWinnerIds = state.allWinnerIds.filter(n => !removed.includes(n));
     }
     saveLotteryState(state);
 

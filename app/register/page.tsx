@@ -8,8 +8,16 @@ const DEFAULT_REGISTER_SETTINGS = {
   allowLetters: false,
 };
 
+interface PoolFieldDefinition {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'phone' | 'email' | 'select';
+  required: boolean;
+}
+
 export default function RegisterPage() {
   const [registerSettings, setRegisterSettings] = useState(DEFAULT_REGISTER_SETTINGS);
+  const [uniqueFieldLabel, setUniqueFieldLabel] = useState('工号');
   const [code, setCode] = useState<string[]>(
     Array(DEFAULT_REGISTER_SETTINGS.length).fill('')
   );
@@ -48,6 +56,10 @@ export default function RegisterPage() {
           length: data.registerSettings.length || DEFAULT_REGISTER_SETTINGS.length,
           allowLetters: !!data.registerSettings.allowLetters,
         });
+      }
+      if (Array.isArray(data.fields)) {
+        const nextUniqueField = data.uniqueField || 'number';
+        setUniqueFieldLabel(data.fields.find((field: PoolFieldDefinition) => field.key === nextUniqueField)?.label || '工号');
       }
       // 比对清空时间戳，管理员清空后自动解锁
       const savedClearedAt = localStorage.getItem('lucky-draw-pool-version');
@@ -165,7 +177,7 @@ export default function RegisterPage() {
           <div className="register-closed">
             <div className="closed-icon">&#9989;</div>
             <p>您已成功登记</p>
-            <p className="closed-hint">工号：{registeredId}</p>
+            <p className="closed-hint">{uniqueFieldLabel}：{registeredId}</p>
           </div>
         ) : (
           <>
@@ -198,7 +210,7 @@ export default function RegisterPage() {
                 ))}
               </div>
               <div className="register-hint">
-                工号为 {registerSettings.length} 位
+                {uniqueFieldLabel}为 {registerSettings.length} 位
                 {registerSettings.allowLetters ? '字母或数字' : '数字'}
               </div>
               <button

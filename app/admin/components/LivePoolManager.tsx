@@ -5,11 +5,25 @@ import { useState, useEffect } from 'react';
 interface LivePoolData {
   isOpen: boolean;
   registrations: string[];
+  members?: PoolMember[];
+  fields?: PoolFieldDefinition[];
+  uniqueField?: string;
+  displayTemplate?: string;
   count: number;
   registerSettings?: {
     length: number;
     allowLetters: boolean;
   };
+}
+
+interface PoolMember {
+  id: string;
+  values: Record<string, string>;
+}
+
+interface PoolFieldDefinition {
+  key: string;
+  label: string;
 }
 
 const DEFAULT_REGISTER_SETTINGS = {
@@ -110,6 +124,15 @@ export default function LivePoolManager() {
   };
 
   const registerSettings = pool.registerSettings || DEFAULT_REGISTER_SETTINGS;
+  const fields = pool.fields || [{ key: pool.uniqueField || 'number', label: '号码' }];
+  const members = pool.members && pool.members.length > 0
+    ? pool.members
+    : pool.registrations.map(id => ({ id, values: { [pool.uniqueField || 'number']: id } }));
+  const getMemberText = (member: PoolMember) => {
+    const template = pool.displayTemplate || `{${pool.uniqueField || 'number'}}`;
+    const text = template.replace(/\{([\w]+)\}/g, (_, key: string) => member.values[key] || '').trim();
+    return text || member.id;
+  };
 
   return (
     <div className="manager-panel">
@@ -181,7 +204,7 @@ export default function LivePoolManager() {
       <div className="admin-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div className="admin-card-header" style={{ marginBottom: 0 }}>
-            已登记工号
+            已登记成员
             <span className="badge" style={{ background: 'rgba(255,215,0,0.12)', color: '#ffd700' }}>
               {pool.count} 人
             </span>
@@ -204,19 +227,43 @@ export default function LivePoolManager() {
           </button>
         </div>
 
-        {pool.registrations.length > 0 ? (
+        {members.length > 0 ? (
           <div style={{
             maxHeight: 280,
             overflowY: 'auto',
             padding: 14,
             background: 'rgba(0,0,0,0.2)',
             borderRadius: 8,
-            fontFamily: "'Courier New', monospace",
             fontSize: 13,
             color: 'rgba(255,255,255,0.7)',
             lineHeight: 1.8,
           }}>
-            {pool.registrations.join(', ')}
+            {fields.length === 1 ? (
+              members.map(getMemberText).join(', ')
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {fields.map(field => (
+                      <th key={field.key} style={{ textAlign: 'left', padding: '4px 8px', color: 'rgba(255,255,255,0.5)' }}>
+                        {field.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map(member => (
+                    <tr key={member.id}>
+                      {fields.map(field => (
+                        <td key={field.key} style={{ padding: '4px 8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                          {member.values[field.key] || ''}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         ) : (
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: 24 }}>

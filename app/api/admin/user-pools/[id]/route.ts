@@ -8,6 +8,7 @@ import {
   saveUserPools,
 } from '@/lib/user-pools';
 import { generateNumberPoolFromConfig, getConfig, getPrizesData, saveConfig, savePrizesData } from '@/lib/lottery';
+import { getAutoGenerateBlockReason, getMemberIds, getRequiredMemberError, normalizeMembers } from '@/lib/participants';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
 
@@ -40,6 +41,14 @@ export async function PUT(
     }
 
     if (body.generateConfig) {
+      const schema = getConfig().participantSchema;
+      const blockReason = getAutoGenerateBlockReason(schema);
+      if (blockReason) {
+        return NextResponse.json(
+          { error: blockReason },
+          { status: 400 },
+        );
+      }
       const generated = generateNumberPoolFromConfig({
         type: 'auto',
         start: body.generateConfig.start,
@@ -51,8 +60,11 @@ export async function PUT(
           ? body.generateConfig.excludeExact
           : [],
       });
-      numbersChanged = !arraysEqual(nextPool.numbers, generated);
-      nextPool.numbers = generated;
+      const generatedMembers = normalizeMembers(generated, schema, 'generate');
+      const generatedIds = getMemberIds(generatedMembers);
+      numbersChanged = !arraysEqual(nextPool.numbers, generatedIds) || JSON.stringify(nextPool.members) !== JSON.stringify(generatedMembers);
+      nextPool.members = generatedMembers;
+      nextPool.numbers = generatedIds;
 
       if (id === DEFAULT_USER_POOL_ID) {
         const config = getConfig();
@@ -71,9 +83,18 @@ export async function PUT(
         delete config.numberPoolConfig.excludePatterns;
         saveConfig(config);
       }
-    } else if (Array.isArray(body.numbers)) {
-      const nextNumbers = normalizePoolNumbers(body.numbers);
-      numbersChanged = !arraysEqual(nextPool.numbers, nextNumbers);
+    } else if (Array.isArray(body.members) || Array.isArray(body.numbers)) {
+      const schema = getConfig().participantSchema;
+      const nextMembers = Array.isArray(body.members)
+        ? normalizeMembers(body.members, schema, 'manual')
+        : normalizeMembers(normalizePoolNumbers(body.numbers), schema, 'manual');
+      const memberError = getRequiredMemberError(nextMembers, schema);
+      if (memberError) {
+        return NextResponse.json({ error: memberError }, { status: 400 });
+      }
+      const nextNumbers = getMemberIds(nextMembers);
+      numbersChanged = !arraysEqual(nextPool.numbers, nextNumbers) || JSON.stringify(nextPool.members) !== JSON.stringify(nextMembers);
+      nextPool.members = nextMembers;
       nextPool.numbers = nextNumbers;
     }
 

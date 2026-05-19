@@ -310,6 +310,16 @@ body {
   white-space: nowrap;
 }
 
+.prize-tag {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(102, 187, 106, 0.16);
+  color: #8ee99a;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .hint {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
@@ -544,6 +554,17 @@ body {
   height: 16px;
   accent-color: #ffd700;
   cursor: pointer;
+}
+
+.prize-checkin-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 /* 按钮体系 */
@@ -906,6 +927,13 @@ body {
   color: #ffd700;
 }
 
+.manager-panel .pool-mode-tabs button:disabled {
+  cursor: not-allowed;
+  color: rgba(255, 255, 255, 0.28);
+  background: transparent;
+  opacity: 1;
+}
+
 .pool-action-panel {
   display: flex;
   flex-direction: column;
@@ -965,9 +993,141 @@ body {
   background: transparent;
 }
 
+.pool-message {
+  margin: -4px 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pool-message.success {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+}
+
+.pool-message.error {
+  color: #ff8a8a;
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid rgba(255, 107, 107, 0.22);
+}
+
+.pool-action-footer .pool-footer-error {
+  color: #ff8a8a;
+}
+
+.pool-member-table-wrap {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.pool-member-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.pool-member-table th,
+.pool-member-table td {
+  padding: 9px 12px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pool-member-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  background: rgba(18, 18, 18, 0.96);
+}
+
+.pool-member-table td:first-child {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+.pool-member-display-text {
+  display: block;
+}
+
+.pool-member-warning {
+  display: block;
+  margin-top: 3px;
+  color: #ff8a8a;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.pool-member-row-warning td {
+  background: rgba(255, 107, 107, 0.045);
+}
+
+.pool-member-table .pool-member-cell-warning {
+  color: #ff8a8a;
+}
+
+.pool-member-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.pool-member-empty {
+  padding: 34px 12px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: center;
+  font-weight: 400;
+}
+
 @media (max-width: 860px) {
   .pool-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-sidebar {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .participant-schema-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .participant-field-header {
+    display: none;
+  }
+
+  .participant-field-row {
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .participant-field-cell > span {
+    display: block;
+  }
+
+  .participant-field-options {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    padding-top: 2px;
+  }
+
+  .participant-field-delete {
+    justify-self: stretch;
   }
 
   .pool-main-header,
@@ -986,6 +1146,172 @@ body {
 }
 
 /* 配置项 */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.settings-sidebar {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+}
+
+.manager-panel .settings-nav-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.manager-panel .settings-nav-item span {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.manager-panel .settings-nav-item small {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.manager-panel .settings-nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  opacity: 1;
+}
+
+.manager-panel .settings-nav-item.active {
+  background: rgba(255, 215, 0, 0.12);
+  border-color: rgba(255, 215, 0, 0.28);
+}
+
+.manager-panel .settings-nav-item.active span {
+  color: #ffd700;
+}
+
+.settings-content {
+  min-width: 0;
+}
+
+.settings-section-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.participant-schema-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(280px, 1fr);
+  gap: 14px;
+  align-items: start;
+  margin: 16px 0 18px;
+}
+
+.participant-schema-controls label {
+  display: grid;
+  grid-template-rows: 18px 34px 16px;
+  gap: 5px;
+  min-width: 0;
+}
+
+.participant-schema-controls label > span,
+.participant-field-cell > span,
+.participant-field-header {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.participant-schema-controls small {
+  display: block;
+  height: 16px;
+  line-height: 16px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.participant-fields {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.participant-field-header,
+.participant-field-row {
+  display: grid;
+  grid-template-columns: minmax(105px, 1fr) minmax(110px, 1fr) 104px minmax(170px, 1.2fr) 116px 64px;
+  gap: 10px;
+  align-items: center;
+}
+
+.participant-field-header {
+  padding: 0 12px;
+  min-height: 24px;
+}
+
+.participant-field-row {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.participant-field-cell {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.participant-field-cell > span {
+  display: none;
+}
+
+.participant-field-row input,
+.participant-field-row select,
+.participant-schema-controls input,
+.participant-schema-controls select {
+  width: 100%;
+  height: 34px;
+  min-width: 0;
+}
+
+.participant-field-options {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.participant-field-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+}
+
+.participant-field-options input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+}
+
+.manager-panel .participant-field-delete {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+}
+
 .config-item {
   margin-bottom: 16px;
 }

@@ -21,7 +21,21 @@ interface Round {
 interface WinnerInfo {
   level: string;
   name: string;
-  numbers: string[];
+  winners?: WinnerSnapshot[];
+  numbers?: string[];
+}
+
+interface WinnerSnapshot {
+  id: string;
+  displayText: string;
+  values: Record<string, string>;
+  wonAt: number;
+}
+
+interface DisplayParticipant {
+  id: string;
+  displayText: string;
+  values?: Record<string, string>;
 }
 
 interface FontSizeConfig {
@@ -52,12 +66,13 @@ interface DisplayState {
   drawCount: number;
   isRolling: boolean;
   winners: string[];
+  winnerDetails?: DisplayParticipant[];
   rounds: Round[];
   prizeRemaining: Record<string, number>;
   winnersByPrize: Record<string, WinnerInfo>;
   numberPool: string[];
   numbersPerRow: number;
-  rollingPool?: string[];
+  rollingPool?: Array<string | DisplayParticipant>;
   fontSizes?: FontSizeConfig;
   displaySettings?: DisplaySettings;
   fontColors?: FontColorConfig;
@@ -81,9 +96,20 @@ function getTextVisualWidth(text: string, fontSize: number): number {
 }
 
 // 计算池中最大文本视觉宽度
-function getPoolMaxWidth(pool: string[], fontSize: number): number {
+function getPoolMaxWidth(pool: DisplayParticipant[], fontSize: number): number {
   if (pool.length === 0) return 0;
-  return Math.max(...pool.map(t => getTextVisualWidth(t, fontSize)));
+  return Math.max(...pool.map(t => getTextVisualWidth(t.displayText, fontSize)));
+}
+
+function toDisplayParticipant(value: string | DisplayParticipant): DisplayParticipant {
+  if (typeof value === 'string') {
+    return { id: value, displayText: value };
+  }
+  return {
+    id: value.id,
+    displayText: value.displayText || value.id,
+    values: value.values,
+  };
 }
 
 interface WSMessage {
@@ -93,14 +119,14 @@ interface WSMessage {
 
 export default function DisplayPage() {
   const [state, setState] = useState<DisplayState | null>(null);
-  const [displayNumbers, setDisplayNumbers] = useState<string[]>([]);
+  const [displayItems, setDisplayItems] = useState<DisplayParticipant[]>([]);
   const [isRolling, setIsRolling] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [qrCodeUrl, setQRCodeUrl] = useState('');
   const [qrCodeMessage, setQRCodeMessage] = useState('');
   const rollInterval = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  const poolRef = useRef<string[]>([]);
+  const poolRef = useRef<DisplayParticipant[]>([]);
   const poolMaxWidthRef = useRef<number>(0);
   const lastPrizeIdRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -125,19 +151,23 @@ export default function DisplayPage() {
     clearRollInterval();
 
     rollInterval.current = setInterval(() => {
-      const nums: string[] = [];
+      const items: DisplayParticipant[] = [];
       const pool = poolRef.current;
       for (let i = 0; i < count && pool.length > 0; i++) {
-        nums.push(pool[Math.floor(Math.random() * pool.length)]);
+        items.push(pool[Math.floor(Math.random() * pool.length)]);
       }
-      setDisplayNumbers(nums);
+      setDisplayItems(items);
     }, 60);
   }, [clearRollInterval]);
 
-  const stopLocalRolling = useCallback((winners: string[]) => {
+  const stopLocalRolling = useCallback((winners: string[], winnerDetails?: DisplayParticipant[]) => {
     clearRollInterval();
     setIsRolling(false);
-    setDisplayNumbers(winners);
+    setDisplayItems(
+      winnerDetails && winnerDetails.length > 0
+        ? winnerDetails.map(toDisplayParticipant)
+        : winners.map(toDisplayParticipant)
+    );
   }, [clearRollInterval]);
 
   // 处理 WebSocket 消息 - 使用 useCallback 避免闭包陷阱
@@ -146,14 +176,16 @@ export default function DisplayPage() {
       case 'state_update': {
         const newState = message.payload as DisplayState;
         setState(newState);
-        poolRef.current = newState.rollingPool || newState.numberPool || [];
+        poolRef.current = newState.rollingPool
+          ? newState.rollingPool.map(toDisplayParticipant)
+          : (newState.numberPool || []).map(toDisplayParticipant);
         const fontSize = newState.fontSizes?.numberCard || 38;
         poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize);
 
         // 检测奖品切换，清空显示
         if (newState.currentPrizeId !== lastPrizeIdRef.current) {
           lastPrizeIdRef.current = newState.currentPrizeId;
-          setDisplayNumbers([]);
+          setDisplayItems([]);
         }
 
         // 停止滚动
@@ -171,13 +203,13 @@ export default function DisplayPage() {
       }
 
       case 'rolling_stop': {
-        const payload = message.payload as { winners: string[] };
-        stopLocalRolling(payload.winners);
+        const payload = message.payload as { winners: string[]; winnerDetails?: DisplayParticipant[] };
+        stopLocalRolling(payload.winners, payload.winnerDetails);
         break;
       }
 
       case 'reset':
-        setDisplayNumbers([]);
+        setDisplayItems([]);
         setIsRolling(false);
         clearRollInterval();
         break;
@@ -201,7 +233,9 @@ export default function DisplayPage() {
       })
       .then(data => {
         setState(data);
-        poolRef.current = data.numberPool || [];
+        poolRef.current = data.rollingPool
+          ? data.rollingPool.map(toDisplayParticipant)
+          : (data.numberPool || []).map(toDisplayParticipant);
         const fontSize = data.fontSizes?.numberCard || 38;
         poolMaxWidthRef.current = getPoolMaxWidth(poolRef.current, fontSize); if (data.showQRCode) {
           setShowQRCode(true);
@@ -387,7 +421,7 @@ export default function DisplayPage() {
           )}
 
           <div className="number-display">
-            {displayNumbers.length > 0 ? (() => {
+            {displayItems.length > 0 ? (() => {
               // 动态计算样式
               const numFontSize = state?.fontSizes?.numberCard || 38;
               const borderWidth = Math.max(2, numFontSize * 0.08);
@@ -395,7 +429,7 @@ export default function DisplayPage() {
               const maskPhone = state?.displaySettings?.maskPhone ?? false;
               const maskNum = (n: string) =>
                 maskPhone && n.length === 11 ? n.slice(0, 3) + '****' + n.slice(7) : n;
-              const displayTexts = displayNumbers.map(maskNum);
+              const displayTexts = displayItems.map(item => maskNum(item.displayText));
 
               // 使用整个池的最大宽度来稳定卡片尺寸，避免滚动时布局抖动
               const cardPadding = numFontSize * 0.8;
@@ -417,7 +451,7 @@ export default function DisplayPage() {
                     gap: `${gap}px`
                   }}
                 >
-                  {displayNumbers.map((num, i) => {
+                  {displayItems.map((item, i) => {
                     const text = displayTexts[i];
                     // 文字过长时自动缩小字号以适配卡片
                     const textWidth = getTextVisualWidth(text, numFontSize);
@@ -427,7 +461,7 @@ export default function DisplayPage() {
                       : numFontSize;
                     return (
                       <div
-                        key={i}
+                        key={`${item.id}-${i}`}
                         className={`number-card ${!isRolling ? 'winner' : ''}`}
                         style={{
                           fontSize: `${scaledFontSize}px`,
