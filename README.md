@@ -6,6 +6,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-24_LTS-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![WebSocket](https://img.shields.io/badge/WebSocket-Realtime-green?style=flat-square)](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
@@ -51,7 +52,7 @@
 
 ### 环境要求
 
-- **Node.js** 18.0 或更高版本
+- **Node.js** 24 LTS 推荐（最低 20.9.0）
 - **npm** 或 **pnpm**
 
 ### 安装
@@ -206,7 +207,7 @@ npm run build && npm run start
 | UI | React | 19.x |
 | 语言 | TypeScript | 5.9 |
 | 通信 | WebSocket (ws) | 8.x |
-| 运行时 | Node.js | 18+ |
+| 运行时 | Node.js | 24.x LTS（最低 20.9.0） |
 
 ### 目录结构
 
@@ -285,7 +286,7 @@ PORT=8080 npm run start
 
 ### 打包为独立可执行程序（Windows）
 
-无需目标机器安装 Node.js，打包后双击即可运行：
+无需目标机器安装 Node.js，打包会内置 Node.js 24.16.0 便携版，生成后双击即可运行：
 
 ```bash
 npm run pack

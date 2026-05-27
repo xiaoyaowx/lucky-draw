@@ -14,16 +14,32 @@
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "claude": "^0.1.1",
-    "next": "^16.1.6",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "typescript": "^5.9.3",
-    "ws": "^8.19.0"
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "caxa": "^3.0.1",
     "cross-env": "^10.1.0",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.28.0",
     "tsx": "^4.21.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.15",
+    "glob": {
+      "minimatch": "^3.1.4"
+    },
+    "readdir-glob": {
+      "minimatch": "^5.1.8"
+    },
+    "minimatch@3.1.5": {
+      "brace-expansion": "^1.1.13"
+    },
+    "minimatch@5.1.9": {
+      "brace-expansion": "^2.0.3"
+    },
+    "picomatch": "^2.3.2"
   }
 }

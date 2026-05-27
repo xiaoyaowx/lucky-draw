@@ -26,7 +26,7 @@ const RUNTIME_DIR = path.join(APP_DIR, 'runtime');
 const NODE_DIR = path.join(RUNTIME_DIR, 'node');
 
 // Node.js 便携版配置
-const NODE_VERSION = '20.11.1';
+const NODE_VERSION = '24.16.0';
 const NODE_FILENAME = `node-v${NODE_VERSION}-win-x64`;
 const NODE_URL = `https://nodejs.org/dist/v${NODE_VERSION}/${NODE_FILENAME}.zip`;
 const NODE_ZIP = path.join(DIST_DIR, `${NODE_FILENAME}.zip`);

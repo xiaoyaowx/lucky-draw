@@ -1,5 +1,5 @@
 # ---- 构建阶段 ----
-FROM node:20-alpine AS builder
+FROM node:24.16.0-alpine AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 RUN npm run build
 
 # ---- 生产阶段 ----
-FROM node:20-alpine AS runner
+FROM node:24.16.0-alpine AS runner
 
 WORKDIR /app
 
