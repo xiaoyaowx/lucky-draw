@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface FontSizeConfig {
   prizeLevel: number;
@@ -18,6 +18,7 @@ interface FontColorConfig {
 interface Config {
   allowRepeatWin: boolean;
   numbersPerRow: number;
+  backgroundImage?: string;
   participantSchema?: ParticipantSchema;
   numberPoolConfig: {
     type: 'auto' | 'manual';
@@ -128,6 +129,9 @@ export default function ConfigPanel() {
   const [userPools, setUserPools] = useState<UserPool[]>([]);
   const [schemaMessage, setSchemaMessage] = useState('');
   const [activeSection, setActiveSection] = useState<SettingSection>('basic');
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
+  const [backgroundDragging, setBackgroundDragging] = useState(false);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/admin/config')
@@ -218,6 +222,65 @@ export default function ConfigPanel() {
     setConfig({ ...config, fontColors: newColors });
   };
 
+  const saveBackgroundImage = useCallback(async (backgroundImage: string) => {
+    if (!config) return;
+    const res = await fetch('/api/admin/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ backgroundImage }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || '保存底图失败');
+      return;
+    }
+    setConfig(data.config);
+  }, [config]);
+
+  const uploadBackgroundFile = useCallback(async (file: File) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('仅支持 jpg/png/gif/webp 格式');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('文件大小不能超过 5MB');
+      return;
+    }
+
+    setBackgroundUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('scope', 'background');
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        alert(data.error || '上传失败');
+        return;
+      }
+      await saveBackgroundImage(data.url);
+    } catch {
+      alert('上传失败');
+    } finally {
+      setBackgroundUploading(false);
+    }
+  }, [saveBackgroundImage]);
+
+  const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadBackgroundFile(file);
+    if (backgroundInputRef.current) backgroundInputRef.current.value = '';
+  };
+
+  const handleBackgroundDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setBackgroundDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) uploadBackgroundFile(file);
+  }, [uploadBackgroundFile]);
+
   const participantSchema = config?.participantSchema || DEFAULT_PARTICIPANT_SCHEMA;
 
   const updateParticipantSchemaLocal = (participantSchema: ParticipantSchema) => {
@@ -280,6 +343,7 @@ export default function ConfigPanel() {
   const fontSizes = config.fontSizes || DEFAULT_FONT_SIZES;
   const fontColors = config.fontColors || DEFAULT_FONT_COLORS;
   const displaySettings = config.displaySettings || { showQuantity: true, showSponsor: true, showNumberBorder: true, maskPhone: false };
+  const backgroundImage = config.backgroundImage || '/bg.jpg';
   const settingsNav: { id: SettingSection; label: string; description: string }[] = [
     { id: 'basic', label: '基本设置', description: '中奖规则与布局数量' },
     { id: 'participants', label: '参与者字段', description: `${participantSchema.fields.length} 个字段` },
@@ -486,6 +550,70 @@ export default function ConfigPanel() {
 
           {activeSection === 'display' && (
             <div className="settings-section-stack">
+              <div className="admin-card">
+                <div className="admin-card-header">抽奖底图</div>
+                <p className="config-hint" style={{ marginTop: 0 }}>
+                  用于大屏抽奖展示页，嘉宾抽奖页不使用底图。
+                </p>
+                <input
+                  ref={backgroundInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleBackgroundUpload}
+                  style={{ display: 'none' }}
+                />
+                {backgroundImage ? (
+                  <div className="upload-preview background-preview">
+                    <img src={backgroundImage} alt="抽奖底图" />
+                    <div className="upload-preview-actions">
+                      <button
+                        type="button"
+                        onClick={() => backgroundInputRef.current?.click()}
+                        disabled={backgroundUploading}
+                      >
+                        更换
+                      </button>
+                      {backgroundImage !== '/bg.jpg' && (
+                        <button
+                          type="button"
+                          className="btn-danger btn-sm"
+                          onClick={() => saveBackgroundImage('/bg.jpg')}
+                          disabled={backgroundUploading}
+                        >
+                          恢复默认
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className={`upload-dropzone${backgroundDragging ? ' dragover' : ''}${backgroundUploading ? ' uploading' : ''}`}
+                    onClick={() => !backgroundUploading && backgroundInputRef.current?.click()}
+                    onDragOver={e => { e.preventDefault(); setBackgroundDragging(true); }}
+                    onDragLeave={() => setBackgroundDragging(false)}
+                    onDrop={handleBackgroundDrop}
+                  >
+                    {backgroundUploading ? (
+                      <>
+                        <svg className="upload-spinner" viewBox="0 0 24 24" width="28" height="28">
+                          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeDasharray="50 20" />
+                        </svg>
+                        <span>上传中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M12 16V4m0 0L8 8m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M20 16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2" strokeLinecap="round" />
+                        </svg>
+                        <span>点击或拖拽底图到此处</span>
+                        <span style={{ fontSize: 11, opacity: 0.5 }}>jpg / png / gif / webp, 最大 5MB</span>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="admin-card">
                 <div className="admin-card-header">显示设置</div>
 

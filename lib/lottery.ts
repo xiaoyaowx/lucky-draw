@@ -142,6 +142,7 @@ export interface RegisterSettings {
 export interface Config {
   allowRepeatWin: boolean;
   numbersPerRow: number;
+  backgroundImage?: string;
   numberPoolConfig: NumberPoolConfig;
   participantSchema: ParticipantSchema;
   fontSizes?: FontSizeConfig;
@@ -189,6 +190,7 @@ const DEFAULT_LOTTERY_STATE: LotteryState = {
 const DEFAULT_CONFIG: Config = {
   allowRepeatWin: false,
   numbersPerRow: 10,
+  backgroundImage: '/bg.jpg',
   participantSchema: DEFAULT_PARTICIPANT_SCHEMA,
   numberPoolConfig: {
     type: 'auto',

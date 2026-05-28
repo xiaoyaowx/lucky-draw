@@ -47,6 +47,7 @@ export function getFullState(displayStateOverride?: DisplayState) {
     })),
 
     allowRepeatWin: config.allowRepeatWin ?? false,
+    backgroundImage: config.backgroundImage || '/bg.jpg',
     numbersPerRow: config.numbersPerRow || 10,
     fontSizes: config.fontSizes || DEFAULT_FONT_SIZES,
     displaySettings: config.displaySettings || DEFAULT_DISPLAY_SETTINGS,

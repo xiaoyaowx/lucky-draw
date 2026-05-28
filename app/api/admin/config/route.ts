@@ -10,6 +10,10 @@ function getTemplateKeys(template: string): string[] {
   return Array.from(template.matchAll(/\{([\w]+)\}/g)).map(match => match[1]);
 }
 
+function isValidBackgroundImage(value: string): boolean {
+  return value === '' || value === '/bg.jpg' || /^\/backgrounds\/[A-Za-z0-9._-]+$/.test(value);
+}
+
 function validateParticipantSchemaUpdate(rawSchema: unknown): { ok: true; schema: ReturnType<typeof normalizeParticipantSchema> } | { ok: false; error: string } {
   const schema = normalizeParticipantSchema(rawSchema);
   const fieldKeys = new Set(schema.fields.map(field => field.key));
@@ -70,6 +74,18 @@ export async function PUT(request: NextRequest) {
     // 更新每行显示数量
     if (updates.numbersPerRow !== undefined) {
       config.numbersPerRow = updates.numbersPerRow;
+    }
+
+    // 更新抽奖展示底图
+    if (updates.backgroundImage !== undefined) {
+      if (typeof updates.backgroundImage !== 'string') {
+        return NextResponse.json({ error: 'Invalid backgroundImage' }, { status: 400 });
+      }
+      const backgroundImage = updates.backgroundImage.trim();
+      if (!isValidBackgroundImage(backgroundImage)) {
+        return NextResponse.json({ error: 'Invalid backgroundImage' }, { status: 400 });
+      }
+      config.backgroundImage = backgroundImage || '/bg.jpg';
     }
 
     // 更新号码池配置

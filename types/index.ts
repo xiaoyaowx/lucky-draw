@@ -94,6 +94,7 @@ export interface DisplayState {
   numberPool: string[];
   rollingPool?: DisplayParticipant[];
   numbersPerRow: number;
+  backgroundImage?: string;
 }
 
 // 控制状态
@@ -144,6 +145,7 @@ export interface StartRollingRequest {
 export interface ConfigUpdateRequest {
   allowRepeatWin?: boolean;
   numbersPerRow?: number;
+  backgroundImage?: string;
   numberPoolConfig?: {
     start: number;
     end: number;

@@ -45,7 +45,9 @@ body {
 .bg {
   position: fixed;
   inset: 0;
-  background: url('/bg.jpg') center/cover no-repeat;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
   z-index: -1;
 }
 
@@ -1586,8 +1588,8 @@ body {
   min-height: 100dvh;
   color: #fff;
   background:
-    linear-gradient(90deg, rgba(4, 8, 14, 0.94), rgba(9, 25, 32, 0.74)),
-    url('/bg.jpg') center/cover no-repeat;
+    radial-gradient(circle at 18% 12%, rgba(255, 215, 0, 0.16), transparent 32%),
+    linear-gradient(135deg, #071018 0%, #10242b 48%, #090d14 100%);
   padding: 28px;
   display: flex;
   flex-direction: column;
@@ -1859,6 +1861,11 @@ body {
   object-fit: cover;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.background-preview img {
+  width: 180px;
+  height: 100px;
 }
 
 .upload-preview-actions {

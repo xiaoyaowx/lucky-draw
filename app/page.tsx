@@ -76,6 +76,7 @@ interface DisplayState {
   fontSizes?: FontSizeConfig;
   displaySettings?: DisplaySettings;
   fontColors?: FontColorConfig;
+  backgroundImage?: string;
 }
 
 
@@ -131,6 +132,7 @@ export default function DisplayPage() {
   const lastPrizeIdRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
+  const backgroundImage = state?.backgroundImage || '/bg.jpg';
 
   // 获取当前奖品
   const currentPrize = state?.currentPrizeId && state?.rounds
@@ -320,7 +322,7 @@ export default function DisplayPage() {
 
   return (
     <div className="app">
-      <div className="bg"></div>
+      <div className="bg" style={{ backgroundImage: `url("${backgroundImage}")` }}></div>
       {showQRCode ? (
         <div className="main-display">
           <div style={{
