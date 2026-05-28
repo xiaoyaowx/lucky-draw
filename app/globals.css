@@ -1526,6 +1526,36 @@ body {
   cursor: not-allowed;
 }
 
+.count-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.custom-count-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 14px;
+}
+
+.custom-count-row label {
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.custom-count-row .custom-count-input {
+  width: 120px;
+  flex: 0 0 120px;
+}
+
+.count-limit {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+}
+
 .control-section .btns button.action {
   flex: 1;
   padding: 15px;
@@ -1548,6 +1578,230 @@ body {
 
 .control-section .btns button.stop:hover:not(:disabled) {
   background: linear-gradient(135deg, #ff6347, #ff3333);
+}
+
+/* 嘉宾 iPad 抽奖页 */
+.guest-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: #fff;
+  background:
+    linear-gradient(90deg, rgba(4, 8, 14, 0.94), rgba(9, 25, 32, 0.74)),
+    url('/bg.jpg') center/cover no-repeat;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.guest-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.guest-kicker {
+  color: #7dd3c7;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.guest-topbar h1 {
+  margin: 2px 0 0;
+  color: #ffd700;
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.guest-stage {
+  flex: 1;
+  min-height: 520px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 22px;
+  align-items: stretch;
+}
+
+.guest-prize-area,
+.guest-action-area {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.42);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+}
+
+.guest-prize-area {
+  padding: 46px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.guest-round {
+  color: #7dd3c7;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 22px;
+}
+
+.guest-prize-level {
+  font-size: 58px;
+  line-height: 1.05;
+  font-weight: 900;
+  text-shadow: 0 0 28px currentColor, 0 8px 24px rgba(0, 0, 0, 0.55);
+  overflow-wrap: anywhere;
+}
+
+.guest-prize-name {
+  margin-top: 20px;
+  color: #fff;
+  font-size: 42px;
+  line-height: 1.2;
+  font-weight: 800;
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  overflow-wrap: anywhere;
+}
+
+.guest-sponsor {
+  margin-top: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 24px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.guest-error {
+  margin-top: 26px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 99, 71, 0.45);
+  border-radius: 8px;
+  background: rgba(255, 69, 0, 0.15);
+  color: #ffb4a6;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.guest-action-area {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+}
+
+.guest-action-copy {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 26px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.guest-primary-button {
+  width: 100%;
+  min-height: 210px;
+  border: 0;
+  border-radius: 8px;
+  color: #091018;
+  font-size: 42px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.38);
+  transition: transform 0.18s, filter 0.18s, opacity 0.18s;
+}
+
+.guest-primary-button.start {
+  background: linear-gradient(135deg, #ffe16a, #ff9f1c);
+}
+
+.guest-primary-button.stop {
+  background: linear-gradient(135deg, #ff6b4a, #d90429);
+  color: #fff;
+}
+
+.guest-primary-button:active:not(:disabled) {
+  transform: translateY(2px) scale(0.99);
+}
+
+.guest-primary-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .guest-page {
+    padding: 22px;
+  }
+
+  .guest-stage {
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .guest-prize-area {
+    min-height: 330px;
+    padding: 34px;
+  }
+
+  .guest-prize-level {
+    font-size: 46px;
+  }
+
+  .guest-prize-name {
+    font-size: 34px;
+  }
+
+  .guest-primary-button {
+    min-height: 156px;
+    font-size: 36px;
+  }
+}
+
+@media (max-width: 560px) {
+  .guest-page {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .guest-topbar h1 {
+    font-size: 28px;
+  }
+
+  .guest-prize-area,
+  .guest-action-area {
+    padding: 20px;
+  }
+
+  .guest-round {
+    font-size: 20px;
+  }
+
+  .guest-prize-level {
+    font-size: 38px;
+  }
+
+  .guest-prize-name {
+    font-size: 28px;
+  }
+
+  .guest-sponsor {
+    font-size: 20px;
+  }
+
+  .guest-action-copy {
+    font-size: 21px;
+  }
+
+  .guest-primary-button {
+    min-height: 132px;
+    font-size: 30px;
+  }
 }
 
 /* 图片上传拖拽区域 */

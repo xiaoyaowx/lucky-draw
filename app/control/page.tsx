@@ -90,6 +90,20 @@ export default function ControlPage() {
   const currentPrize = currentPrizeId && currentRound
     ? currentRound.prizes.find(p => p.id === currentPrizeId)
     : null;
+  const maxDrawCount = currentPrizeId ? getMaxDrawCount(state, currentPrizeId) : 0;
+
+  function getMaxDrawCount(targetState: ControlState | null, prizeId: string | null): number {
+    if (!targetState || !prizeId) return 0;
+    const remaining = targetState.prizeRemaining[prizeId] || 0;
+    const available = targetState.availablePoolSize ?? remaining;
+    return Math.max(0, Math.min(remaining, available));
+  }
+
+  function normalizeDrawCount(count: number, maxDraw = maxDrawCount): number {
+    if (maxDraw <= 0) return 0;
+    if (!Number.isFinite(count)) return 1;
+    return Math.min(Math.max(Math.floor(count), 1), maxDraw);
+  }
 
   useEffect(() => {
     fetchState();
@@ -112,11 +126,18 @@ export default function ControlPage() {
   const fetchState = async () => {
     const res = await fetch('/api/control/state');
     const data = await res.json();
+    const nextPrizeId = data.currentPrizeId || null;
+    const nextDrawCount = nextPrizeId
+      ? normalizeDrawCount(Number(data.drawCount ?? 1), getMaxDrawCount(data, nextPrizeId))
+      : (data.drawCount || 1);
     setState(data);
     setCurrentRoundId(data.currentRoundId || 1);
-    setCurrentPrizeId(data.currentPrizeId);
-    setDrawCount(data.drawCount || 1);
+    setCurrentPrizeId(nextPrizeId);
+    setDrawCount(nextDrawCount);
     setIsRolling(data.isRolling || false);
+    if (nextPrizeId && data.drawCount !== nextDrawCount) {
+      updateState({ drawCount: nextDrawCount });
+    }
   };
 
   const updateState = async (updates: Partial<ControlState>) => {
@@ -144,20 +165,30 @@ export default function ControlPage() {
     if (isRolling) return;
     setCurrentPrizeId(prizeId);
     const nextState = await updateState({ currentPrizeId: prizeId });
-    const remaining = nextState?.prizeRemaining?.[prizeId] || 0;
-    const available = nextState?.availablePoolSize ?? remaining;
-    const newCount = Math.min(remaining, available, 30);
+    const newCount = Math.min(getMaxDrawCount(nextState, prizeId), 30);
     setDrawCount(newCount);
     await updateState({ currentPrizeId: prizeId, drawCount: newCount });
   };
 
   const handleCountChange = (count: number) => {
-    setDrawCount(count);
-    updateState({ drawCount: count });
+    const nextCount = normalizeDrawCount(count);
+    setDrawCount(nextCount);
+    updateState({ drawCount: nextCount });
   };
 
   const handleStart = async () => {
     if (!currentPrizeId) return;
+    if (maxDrawCount <= 0) {
+      alert('当前没有可抽取的数量');
+      return;
+    }
+    if (drawCount < 1 || drawCount > maxDrawCount) {
+      const nextCount = normalizeDrawCount(drawCount);
+      setDrawCount(nextCount);
+      updateState({ drawCount: nextCount });
+      alert(`抽取数量不能超过 ${maxDrawCount}`);
+      return;
+    }
     setIsRolling(true);
     const res = await fetch('/api/control/start', {
       method: 'POST',
@@ -191,8 +222,10 @@ export default function ControlPage() {
       // 自动调整抽取数量，避免超出剩余
       if (currentPrizeId) {
         const newRemaining = data.prizeRemaining[currentPrizeId] || 0;
-        if (drawCount > newRemaining) {
-          const adjusted = Math.min(newRemaining, 30);
+        const newAvailable = data.availablePoolSize ?? newRemaining;
+        const newMaxDraw = Math.max(0, Math.min(newRemaining, newAvailable));
+        if (drawCount > newMaxDraw) {
+          const adjusted = normalizeDrawCount(drawCount, newMaxDraw);
           setDrawCount(adjusted);
           updateState({ drawCount: adjusted });
         }
@@ -359,27 +392,45 @@ export default function ControlPage() {
       {currentPrize && (
         <div className="control-section">
           <h3>抽取数量</h3>
-          <div className="btns">
-            {(() => {
-              const remaining = state.prizeRemaining[currentPrize.id] || 0;
-              const available = state.availablePoolSize ?? remaining;
-              const maxDraw = Math.min(remaining, available);
-              const baseOptions = [1, 5, 10, 15, 20, 30];
-              // 如果剩余数量大于0且不在基础选项中，添加它
-              const options = (maxDraw > 0 && !baseOptions.includes(maxDraw))
-                ? [...baseOptions, maxDraw].sort((a, b) => a - b)
-                : baseOptions;
-              return options.map(n => (
-                <button
-                  key={n}
-                  className={drawCount === n ? 'active' : ''}
-                  disabled={n > maxDraw || isRolling}
-                  onClick={() => handleCountChange(n)}
-                >
-                  {n === maxDraw && !baseOptions.includes(maxDraw) ? `${n}(全部)` : n}
-                </button>
-              ));
-            })()}
+          <div className="count-selector">
+            <div className="btns">
+              {(() => {
+                const remaining = state.prizeRemaining[currentPrize.id] || 0;
+                const available = state.availablePoolSize ?? remaining;
+                const maxDraw = Math.min(remaining, available);
+                const baseOptions = [1, 5, 10, 15, 20, 30];
+                // 如果剩余数量大于0且不在基础选项中，添加它
+                const options = (maxDraw > 0 && !baseOptions.includes(maxDraw))
+                  ? [...baseOptions, maxDraw].sort((a, b) => a - b)
+                  : baseOptions;
+                return options.map(n => (
+                  <button
+                    key={n}
+                    className={drawCount === n ? 'active' : ''}
+                    disabled={n > maxDraw || isRolling}
+                    onClick={() => handleCountChange(n)}
+                  >
+                    {n === maxDraw && !baseOptions.includes(maxDraw) ? `${n}(全部)` : n}
+                  </button>
+                ));
+              })()}
+            </div>
+            <div className="custom-count-row">
+              <label htmlFor="custom-draw-count">自定义</label>
+              <input
+                id="custom-draw-count"
+                className="control-input custom-count-input"
+                type="number"
+                min={maxDrawCount > 0 ? 1 : 0}
+                max={maxDrawCount}
+                step={1}
+                value={drawCount}
+                disabled={isRolling || maxDrawCount <= 0}
+                onChange={(e) => handleCountChange(Number(e.target.value))}
+                onBlur={() => handleCountChange(drawCount)}
+              />
+              <span className="count-limit">最多 {maxDrawCount}</span>
+            </div>
           </div>
         </div>
       )}
@@ -438,7 +489,7 @@ export default function ControlPage() {
           <button
             className={`action ${isRolling ? 'stop' : 'start'}`}
             onClick={() => isRolling ? handleStop() : handleStart()}
-            disabled={showQRCode || !currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0 || (!isRolling && state.availablePoolSize === 0)}
+            disabled={showQRCode || !currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0 || (!isRolling && (state.availablePoolSize === 0 || drawCount < 1 || drawCount > maxDrawCount))}
           >
             {isRolling ? '停止抽奖' : '开始抽奖'}
           </button>

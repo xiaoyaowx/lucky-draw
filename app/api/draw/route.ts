@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     if (typeof prizeId !== 'string' || !prizeId) {
       return NextResponse.json({ error: 'Invalid prizeId' }, { status: 400 });
     }
-    if (typeof count !== 'number' || count < 1) {
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
       return NextResponse.json({ error: 'Invalid count' }, { status: 400 });
     }
 
@@ -66,11 +66,16 @@ export async function POST(request: NextRequest) {
     const availablePools = getAvailablePoolsForRound(targetRound, state, config, prizeId);
     const availablePool = getAvailableUnion(availablePools);
 
-    const actualCount = Math.min(count, remaining, availablePool.length);
+    const maxDraw = Math.min(remaining, availablePool.length);
 
-    if (actualCount === 0) {
+    if (maxDraw === 0) {
       return NextResponse.json({ error: 'No numbers available' }, { status: 400 });
     }
+    if (count > maxDraw) {
+      return NextResponse.json({ error: `抽取数量不能超过 ${maxDraw}` }, { status: 400 });
+    }
+
+    const actualCount = count;
 
     const winningCandidates: DrawCandidate[] = [];
 

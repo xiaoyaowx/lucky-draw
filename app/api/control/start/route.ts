@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const { count, prizeId } = body;
 
     // 参数验证
-    if (typeof count !== 'number' || count < 1) {
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
       return NextResponse.json({ error: 'Invalid count' }, { status: 400 });
     }
     if (typeof prizeId !== 'string' || !prizeId) {
@@ -36,19 +36,31 @@ export async function POST(request: NextRequest) {
     const config = getConfig();
 
     let targetRound = null;
+    let targetPrize = null;
     for (const round of prizesData.rounds) {
-      if (round.prizes.find(p => p.id === prizeId)) {
+      const found = round.prizes.find(p => p.id === prizeId);
+      if (found) {
         targetRound = round;
+        targetPrize = found;
         break;
       }
+    }
+
+    if (!targetPrize) {
+      return NextResponse.json({ error: 'Prize not found' }, { status: 404 });
     }
 
     const availablePools = getAvailablePoolsForRound(targetRound, lotteryState, config, prizeId);
     const availablePool = getAvailableUnion(availablePools);
     const rollingPool = availablePool.map(candidate => createDisplayParticipant(candidate, config.participantSchema));
+    const remaining = lotteryState.prizeRemaining[prizeId] || 0;
+    const maxDraw = Math.min(remaining, availablePool.length);
 
-    if (availablePool.length === 0) {
+    if (maxDraw <= 0) {
       return NextResponse.json({ error: '绑定的用户池中没有可用号码' }, { status: 400 });
+    }
+    if (count > maxDraw) {
+      return NextResponse.json({ error: `抽取数量不能超过 ${maxDraw}` }, { status: 400 });
     }
 
     const newDisplayState = updateDisplayState({
