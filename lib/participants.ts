@@ -221,46 +221,73 @@ export function normalizeMembers(
   return members;
 }
 
-export function parseMembersFromText(
-  input: string,
-  schema = DEFAULT_PARTICIPANT_SCHEMA,
-  source: PoolMember['source'] = 'import',
-): PoolMember[] {
-  const lines = input.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-  if (lines.length === 0) return [];
-
-  const splitRow = (line: string) => line.split(/[\t,，]/).map(item => item.trim());
-  const fieldByKey = new Map(schema.fields.map(field => [field.key, field]));
-  const headerKeyMap = new Map<string, string>();
-  schema.fields.forEach((field) => {
-    headerKeyMap.set(field.key, field.key);
-    headerKeyMap.set(field.label, field.key);
+/**
+ * 构造表头匹配表：字段 key 与显示名称都能当列名。
+ *
+ * 两处细节：
+ * - **全小写**匹配，用户从 Excel 里带出来的 `Number` / `NUMBER` 也能认；
+ * - **先放完所有 key，再放所有 label**。否则某个字段的 label 恰好等于另一个字段的
+ *   key 时，谁生效取决于字段顺序，结果不可预期 —— key 是程序标识，优先权更高。
+ */
+function buildHeaderKeyMap(schema: ParticipantSchema): Map<string, string> {
+  const map = new Map<string, string>();
+  schema.fields.forEach(field => map.set(field.key.toLowerCase(), field.key));
+  schema.fields.forEach(field => {
+    const label = field.label.toLowerCase();
+    if (!map.has(label)) map.set(label, field.key);
   });
+  return map;
+}
 
-  const first = splitRow(lines[0]);
-  const hasHeader = first.length > 0 && first.every(item => headerKeyMap.has(item));
-  const defaultHeaders = [
+function buildDefaultHeaders(schema: ParticipantSchema): string[] {
+  return [
     schema.uniqueField,
     ...schema.fields.filter(field => field.key !== schema.uniqueField).map(field => field.key),
   ];
-  const headers = hasHeader ? first.map(item => headerKeyMap.get(item)!) : defaultHeaders;
-  const dataLines = hasHeader ? lines.slice(1) : lines;
+}
+
+/**
+ * 把「已经切成单元格的表格」转成成员。
+ *
+ * Excel / CSV 文件走这条路径；粘贴文本的 `parseMembersFromText` 最终也收敛到这里。
+ * 两条路径共用同一套表头识别、字段映射与去重规则 —— 否则「同一份名单，
+ * 粘贴和传文件结果不一样」这种问题极难排查。
+ */
+export function buildMembersFromTable(
+  rawRows: string[][],
+  schema = DEFAULT_PARTICIPANT_SCHEMA,
+  source: PoolMember['source'] = 'import',
+): PoolMember[] {
+  const rows = rawRows
+    .map(row => (Array.isArray(row) ? row.map(cell => String(cell ?? '').trim()) : []))
+    .filter(row => row.some(cell => cell !== ''));
+  if (rows.length === 0) return [];
+
+  const fieldByKey = new Map(schema.fields.map(field => [field.key, field]));
+  const headerKeyMap = buildHeaderKeyMap(schema);
+
+  const first = rows[0];
+  const hasHeader = first.length > 0 && first.every(item => headerKeyMap.has(item.toLowerCase()));
+  const headers = hasHeader
+    ? first.map(item => headerKeyMap.get(item.toLowerCase())!)
+    : buildDefaultHeaders(schema);
+  const dataRows = hasHeader ? rows.slice(1) : rows;
+
   const seen = new Set<string>();
   const members: PoolMember[] = [];
 
-  dataLines.forEach((line) => {
-    const columns = splitRow(line);
-    const parseAsFieldRow = hasHeader || (schema.fields.length > 1 && columns.length > 1);
-    const rows = parseAsFieldRow
-      ? [columns]
-      : line.split(/[,\n\r\s，]+/).map(item => item.trim()).filter(Boolean).map(item => [item]);
+  dataRows.forEach((row) => {
+    // 单字段 schema 下多余的列不可能是别的字段，只可能是「一行里塞了多个号码」，
+    // 按多个人拆开更符合直觉（粘贴文本路径也是这个行为）。
+    const groups = schema.fields.length === 1 && !hasHeader && row.length > 1
+      ? row.map(cell => [cell])
+      : [row];
 
-    rows.forEach((row) => {
-      const rowHeaders = parseAsFieldRow ? headers : [schema.uniqueField];
+    groups.forEach((group) => {
       const values: Record<string, string> = {};
-      rowHeaders.forEach((key, index) => {
+      headers.forEach((key, index) => {
         const field = fieldByKey.get(key);
-        const value = normalizeFieldValue(row[index], field);
+        const value = normalizeFieldValue(group[index], field);
         if (field && value) values[key] = value;
       });
 
@@ -273,6 +300,47 @@ export function parseMembersFromText(
   });
 
   return members;
+}
+
+/**
+ * 解析粘贴进来的文本。
+ *
+ * 除了按行切分，这里还要处理一种「人肉输入」特有的写法：
+ * 单字段 schema 下用户会把多个号码挤在一行里，用空格分隔（`0001 0002 0003`）。
+ * 文件导入没这个问题（Excel 天然是一行一条），所以这段预处理只留在这里。
+ */
+export function parseMembersFromText(
+  input: string,
+  schema = DEFAULT_PARTICIPANT_SCHEMA,
+  source: PoolMember['source'] = 'import',
+): PoolMember[] {
+  const lines = input.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  if (lines.length === 0) return [];
+
+  const splitRow = (line: string) => line.split(/[\t,，]/).map(item => item.trim());
+  const headerKeyMap = buildHeaderKeyMap(schema);
+
+  const first = splitRow(lines[0]);
+  const hasHeader = first.length > 0 && first.every(item => headerKeyMap.has(item.toLowerCase()));
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  const rows: string[][] = [];
+  if (hasHeader) rows.push(first);
+
+  dataLines.forEach((line) => {
+    const columns = splitRow(line);
+    if (hasHeader || (schema.fields.length > 1 && columns.length > 1)) {
+      rows.push(columns);
+      return;
+    }
+    // 单字段且不是表头：按空白/逗号再拆一次，一行可以写多个号码
+    line.split(/[,\n\r\s，]+/)
+      .map(item => item.trim())
+      .filter(Boolean)
+      .forEach(item => rows.push([item]));
+  });
+
+  return buildMembersFromTable(rows, schema, source);
 }
 
 export function getMemberIds(members: PoolMember[]): string[] {

@@ -130,43 +130,68 @@ export function saveLivePool(pool: LivePool): void {
   safeWriteJSON(getLivePoolFile(), serializeLivePool(normalizeLivePool(pool)));
 }
 
+/**
+ * 签到结果码。
+ *
+ * 接口同时返回 `code` 和中文 `message`：message 给日志和接口调试看，
+ * code 给前端按用户当前语言渲染提示。这样签到页切到英文时，
+ * 后端本身仍然是中文的，两边互不干扰。
+ */
+export type RegisterCode =
+  | 'ok'
+  | 'closed'
+  | 'empty'
+  | 'formatDigits'
+  | 'formatAlnum'
+  | 'lengthDigits'
+  | 'lengthAlnum'
+  | 'notFound'
+  | 'duplicate'
+  | 'error';
+
+export interface RegisterResult {
+  success: boolean;
+  code: RegisterCode;
+  message: string;
+  member?: PoolMember;
+}
+
 function findMemberByUniqueId(id: string): PoolMember | null {
   return getUserMemberMap().get(id) || null;
 }
 
-export function registerParticipant(values: Record<string, string>): { success: boolean; message: string; member?: PoolMember } {
+export function registerParticipant(values: Record<string, string>): RegisterResult {
   const pool = getLivePool();
   const schema = getConfig().participantSchema;
 
   if (!pool.isOpen) {
-    return { success: false, message: '登记已关闭' };
+    return { success: false, code: 'closed', message: '登记已关闭' };
   }
 
   const member = normalizeMembers([values], schema, 'register')[0];
   if (!member) {
-    return { success: false, message: `${schema.uniqueField} 不能为空` };
+    return { success: false, code: 'empty', message: `${schema.uniqueField} 不能为空` };
   }
 
   const matchedMember = findMemberByUniqueId(member.id);
   if (!matchedMember) {
-    return { success: false, message: '该工号不在抽奖名单中' };
+    return { success: false, code: 'notFound', message: '该工号不在抽奖名单中' };
   }
 
   if (pool.members.some(item => item.id === member.id)) {
-    return { success: false, message: '该工号已签到' };
+    return { success: false, code: 'duplicate', message: '该工号已签到' };
   }
 
   pool.members.push(createRegisteredSnapshot(matchedMember, { updatedAt: Date.now() }));
   pool.registrations = getMemberIds(pool.members);
   saveLivePool(pool);
 
-  return { success: true, message: '签到成功', member: matchedMember };
+  return { success: true, code: 'ok', message: '签到成功', member: matchedMember };
 }
 
-export function registerEmployee(employeeId: string): { success: boolean; message: string } {
+export function registerEmployee(employeeId: string): RegisterResult {
   const schema = getConfig().participantSchema;
-  const result = registerParticipant({ [schema.uniqueField]: employeeId });
-  return { success: result.success, message: result.message };
+  return registerParticipant({ [schema.uniqueField]: employeeId });
 }
 
 export function clearLivePool(): void {
@@ -181,6 +206,43 @@ export function setLivePoolOpen(isOpen: boolean): void {
   const pool = getLivePool();
   pool.isOpen = isOpen;
   saveLivePool(pool);
+}
+
+/**
+ * 改名时同步签到池里的成员 id。
+ *
+ * 为什么不能走 getLivePool()/saveLivePool()：这一对函数每次都会做
+ * `normalizeCheckedInMembers`，把「在用户池里找不到对应成员」的签到记录丢掉。
+ * 改名过程中新旧 id 必然有一瞬间对不上用户池，用它们会把这条签到静默抹掉 ——
+ * 所以这里直接读写原始文件，不做交叉校验。
+ *
+ * @returns 是否真的改到了记录（没签到过就返回 false）
+ */
+export function renameCheckedInMember(
+  oldId: string,
+  newId: string,
+  schema: ParticipantSchema,
+): boolean {
+  const raw = safeReadJSON<LivePool>(getLivePoolFile(), DEFAULT_LIVE_POOL);
+  const members = Array.isArray(raw.members) ? raw.members : [];
+  if (!members.some(member => member && member.id === oldId)) return false;
+
+  const nextMembers = members.map((member) => {
+    if (!member || member.id !== oldId) return member;
+    return {
+      ...member,
+      id: newId,
+      values: { ...(member.values || {}), [schema.uniqueField]: newId },
+    };
+  });
+
+  safeWriteJSON(getLivePoolFile(), {
+    isOpen: Boolean(raw.isOpen),
+    schemaVersion: 2,
+    members: nextMembers,
+    clearedAt: typeof raw.clearedAt === 'number' ? raw.clearedAt : 0,
+  });
+  return true;
 }
 
 export function removeFromLivePool(numbers: string[]): void {

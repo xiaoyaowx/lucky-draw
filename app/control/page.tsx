@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import LanguageSwitch from '../components/LanguageSwitch';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 interface Prize {
   id: string;
@@ -78,13 +80,16 @@ function getWinnerTexts(info: WinnerInfo): string[] {
 }
 
 export default function ControlPage() {
+  const { t, lang } = useI18n('admin');
   const [state, setState] = useState<ControlState | null>(null);
   const [currentRoundId, setCurrentRoundId] = useState(1);
   const [currentPrizeId, setCurrentPrizeId] = useState<string | null>(null);
   const [drawCount, setDrawCount] = useState(1);
   const [isRolling, setIsRolling] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
-  const [qrCodeMessage, setQRCodeMessage] = useState('请扫描二维码，输入工号完成签到');
+  // 空串表示「还没设过提示语」，此时输入框用 placeholder 显示当前语言的默认文案，
+  // 真正保存时再把它落成具体文字 —— 这样切语言不会把已保存的自定义文案覆盖掉。
+  const [qrCodeMessage, setQRCodeMessage] = useState('');
 
   const currentRound = state?.rounds.find(r => r.id === currentRoundId);
   const currentPrize = currentPrizeId && currentRound
@@ -116,7 +121,7 @@ export default function ControlPage() {
       const data = await res.json();
       setShowQRCode(data.showQRCode || false);
       if (typeof data.qrCodeMessage === 'string') {
-        setQRCodeMessage(data.qrCodeMessage || '请扫描二维码，输入工号完成签到');
+        setQRCodeMessage(data.qrCodeMessage);
       }
     } catch {
       // ignore
@@ -179,14 +184,14 @@ export default function ControlPage() {
   const handleStart = async () => {
     if (!currentPrizeId) return;
     if (maxDrawCount <= 0) {
-      alert('当前没有可抽取的数量');
+      alert(t('control.noAvailable'));
       return;
     }
     if (drawCount < 1 || drawCount > maxDrawCount) {
       const nextCount = normalizeDrawCount(drawCount);
       setDrawCount(nextCount);
       updateState({ drawCount: nextCount });
-      alert(`抽取数量不能超过 ${maxDrawCount}`);
+      alert(t('control.overLimit', { n: maxDrawCount }));
       return;
     }
     setIsRolling(true);
@@ -198,7 +203,7 @@ export default function ControlPage() {
     if (!res.ok) {
       const data = await res.json();
       setIsRolling(false);
-      alert(data.error || '开始抽奖失败');
+      alert(data.error || t('control.startFailed'));
     }
   };
 
@@ -207,7 +212,7 @@ export default function ControlPage() {
     const data = await res.json();
     setIsRolling(false);
     if (!res.ok) {
-      alert(data.error || '停止抽奖失败');
+      alert(data.error || t('control.stopFailed'));
       fetchState();
       return;
     }
@@ -234,7 +239,7 @@ export default function ControlPage() {
   };
 
   const handleReset = async () => {
-    if (!confirm('确定要重置所有抽奖数据吗？')) return;
+    if (!confirm(t('control.confirmResetAll'))) return;
     await fetch('/api/reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -245,7 +250,7 @@ export default function ControlPage() {
 
   const handleResetPrize = async () => {
     if (!currentPrizeId || !currentPrize) return;
-    if (!confirm(`确定要重置【${currentPrize.level} - ${currentPrize.name}】的抽奖数据吗？`)) return;
+    if (!confirm(t('control.confirmResetPrize', { level: currentPrize.level, name: currentPrize.name }))) return;
     await fetch('/api/reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -264,7 +269,7 @@ export default function ControlPage() {
       const data = await res.json();
       setShowQRCode(data.showQRCode);
       if (typeof data.qrCodeMessage === 'string') {
-        setQRCodeMessage(data.qrCodeMessage || qrCodeMessage);
+        setQRCodeMessage(data.qrCodeMessage);
       }
     } catch {
       // ignore
@@ -281,7 +286,7 @@ export default function ControlPage() {
       const data = await res.json();
       setShowQRCode(data.showQRCode);
       if (typeof data.qrCodeMessage === 'string') {
-        setQRCodeMessage(data.qrCodeMessage || qrCodeMessage);
+        setQRCodeMessage(data.qrCodeMessage);
       }
     } catch {
       // ignore
@@ -307,8 +312,8 @@ export default function ControlPage() {
   const handleExport = () => {
     if (!state) return;
 
-    let content = '抽奖中奖记录\n';
-    content += '导出时间: ' + new Date().toLocaleString() + '\n';
+    let content = t('control.exportTitle') + '\n';
+    content += t('control.exportTime', { time: new Date().toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US') }) + '\n';
     content += '=' .repeat(50) + '\n\n';
 
     // 按轮次分组
@@ -323,37 +328,40 @@ export default function ControlPage() {
     });
 
     Object.entries(byRound).forEach(([roundName, prizes]) => {
-      content += `【${roundName}】\n`;
+      content += t('control.exportRound', { name: roundName }) + '\n';
       prizes.forEach(p => {
         const winnerTexts = getWinnerTexts(p);
-        content += `  ${p.level} - ${p.name} (${winnerTexts.length}人)\n`;
-        content += `  中奖名单: ${winnerTexts.join(', ')}\n\n`;
+        content += '  ' + t('control.exportPrizeLine', { level: p.level, name: p.name, n: winnerTexts.length }) + '\n';
+        content += '  ' + t('control.exportWinnerList', { list: winnerTexts.join(', ') }) + '\n\n';
       });
     });
 
     content += '=' .repeat(50) + '\n';
-    content += `总计中奖: ${totalWinners}人\n`;
+    content += t('control.exportTotal', { n: totalWinners }) + '\n';
 
     // 下载文件
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `中奖记录_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `${t('control.exportFilename', { date: new Date().toISOString().slice(0, 10) })}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
   if (!state) {
-    return <div className="control-container"><h1>加载中...</h1></div>;
+    return <div className="control-container"><h1>{t('common.loading')}</h1></div>;
   }
 
   return (
     <div className="control-container">
-      <h1 className="control-title">抽奖控制台</h1>
+      <div className="control-header">
+        <LanguageSwitch scope="admin" className="lang-switch-inline" />
+        <h1 className="control-title">{t('control.title')}</h1>
+      </div>
 
       <div className="control-section">
-        <h3>轮次选择</h3>
+        <h3>{t('control.roundSelect')}</h3>
         <div className="btns">
           {state.rounds.map(r => (
             <button
@@ -369,7 +377,7 @@ export default function ControlPage() {
       </div>
 
       <div className="control-section">
-        <h3>奖品选择</h3>
+        <h3>{t('control.prizeSelect')}</h3>
         <div className="prize-list">
           {currentRound?.prizes.map(p => {
             const rem = state.prizeRemaining[p.id] || 0;
@@ -381,7 +389,7 @@ export default function ControlPage() {
               >
                 <span style={{ color: p.color }}>{p.level}</span>
                 <span className="pname">{p.name}</span>
-                {p.requireCheckIn && <span className="prize-tag">仅已签到</span>}
+                {p.requireCheckIn && <span className="prize-tag">{t('control.checkInOnly')}</span>}
                 <span>{rem}/{p.quantity}</span>
               </div>
             );
@@ -391,7 +399,7 @@ export default function ControlPage() {
 
       {currentPrize && (
         <div className="control-section">
-          <h3>抽取数量</h3>
+          <h3>{t('control.drawCount')}</h3>
           <div className="count-selector">
             <div className="btns">
               {(() => {
@@ -410,13 +418,13 @@ export default function ControlPage() {
                     disabled={n > maxDraw || isRolling}
                     onClick={() => handleCountChange(n)}
                   >
-                    {n === maxDraw && !baseOptions.includes(maxDraw) ? `${n}(全部)` : n}
+                    {n === maxDraw && !baseOptions.includes(maxDraw) ? t('control.allOption', { n }) : n}
                   </button>
                 ));
               })()}
             </div>
             <div className="custom-count-row">
-              <label htmlFor="custom-draw-count">自定义</label>
+              <label htmlFor="custom-draw-count">{t('control.custom')}</label>
               <input
                 id="custom-draw-count"
                 className="control-input custom-count-input"
@@ -429,24 +437,24 @@ export default function ControlPage() {
                 onChange={(e) => handleCountChange(Number(e.target.value))}
                 onBlur={() => handleCountChange(drawCount)}
               />
-              <span className="count-limit">最多 {maxDrawCount}</span>
+              <span className="count-limit">{t('control.maxCount', { n: maxDrawCount })}</span>
             </div>
           </div>
         </div>
       )}
 
       <div className="control-section">
-        <h3>签到登记</h3>
+        <h3>{t('control.checkIn')}</h3>
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: 'block', fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 6 }}>
-            二维码提示文字
+            {t('control.qrMessageLabel')}
           </label>
           <div className="control-input-group">
             <input
               type="text"
               value={qrCodeMessage}
               onChange={(e) => setQRCodeMessage(e.target.value)}
-              placeholder="请输入提示文字"
+              placeholder={t('control.defaultQrMessage')}
               className="control-input"
             />
             <button
@@ -454,8 +462,8 @@ export default function ControlPage() {
               className="control-icon-btn"
               onClick={handleUpdateQRCodeMessage}
               disabled={isRolling}
-              aria-label="保存提示文字"
-              title="保存提示文字"
+              aria-label={t('control.saveQrMessage')}
+              title={t('control.saveQrMessage')}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -473,39 +481,39 @@ export default function ControlPage() {
             disabled={isRolling}
             style={{ flex: 1 }}
           >
-            {showQRCode ? '关闭签到二维码' : '显示签到二维码'}
+            {showQRCode ? t('control.hideQr') : t('control.showQr')}
           </button>
         </div>
         {showQRCode && (
           <p style={{ marginTop: 10, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-            大屏正在显示签到二维码，用户可扫码登记工号
+            {t('control.qrShowing')}
           </p>
         )}
       </div>
 
       <div className="control-section">
-        <h3>操作</h3>
+        <h3>{t('control.actions')}</h3>
         <div className="btns">
           <button
             className={`action ${isRolling ? 'stop' : 'start'}`}
             onClick={() => isRolling ? handleStop() : handleStart()}
             disabled={showQRCode || !currentPrize || (state.prizeRemaining[currentPrize?.id || ''] || 0) === 0 || (!isRolling && (state.availablePoolSize === 0 || drawCount < 1 || drawCount > maxDrawCount))}
           >
-            {isRolling ? '停止抽奖' : '开始抽奖'}
+            {isRolling ? t('control.stop') : t('control.start')}
           </button>
           <button
             onClick={handleResetPrize}
             disabled={isRolling || !currentPrize}
           >
-            重置当前奖品
+            {t('control.resetPrize')}
           </button>
-          <button onClick={handleReset} disabled={isRolling}>重置全部</button>
+          <button onClick={handleReset} disabled={isRolling}>{t('control.resetAll')}</button>
         </div>
       </div>
 
       <div className="control-section">
-        <h3>状态</h3>
-        <p>可用号码: {state.availablePoolSize}</p>
+        <h3>{t('control.status')}</h3>
+        <p>{t('control.availableNumbers', { n: state.availablePoolSize })}</p>
         {state.availablePools && state.availablePools.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
             {state.availablePools.map(pool => (
@@ -519,7 +527,7 @@ export default function ControlPage() {
                   fontSize: 12,
                 }}
               >
-                {pool.name} {pool.probability}% / {pool.count} 人
+                {t('control.poolChip', { name: pool.name, p: pool.probability, n: pool.count })}
               </span>
             ))}
           </div>
@@ -528,9 +536,9 @@ export default function ControlPage() {
 
       <div className="control-section winners">
         <h3>
-          中奖记录 ({totalWinners}人)
+          {t('control.winnersCount', { n: totalWinners })}
           {totalWinners > 0 && (
-            <button onClick={handleExport} className="export-btn">导出记录</button>
+            <button onClick={handleExport} className="export-btn">{t('control.exportWinners')}</button>
           )}
         </h3>
         {state.rounds.map(round => {

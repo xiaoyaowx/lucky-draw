@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 interface PoolBinding {
   poolId: string;
@@ -42,6 +43,7 @@ function sanitizeBindings(bindings: PoolBinding[]): PoolBinding[] {
 }
 
 export default function RoundManager() {
+  const { t } = useI18n('admin');
   const [rounds, setRounds] = useState<Round[]>([]);
   const [poolOptions, setPoolOptions] = useState<PoolOption[]>([]);
   const [newName, setNewName] = useState('');
@@ -113,7 +115,7 @@ export default function RoundManager() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('确定删除此轮次？')) return;
+    if (!confirm(t('rounds.confirmDelete'))) return;
     await fetch(`/api/admin/rounds/${id}`, { method: 'DELETE' });
     fetchRounds();
   };
@@ -163,14 +165,14 @@ export default function RoundManager() {
           />
           <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>%</span>
           <button className="btn-danger btn-sm" onClick={() => removeBinding(bindings, index, setter)}>
-            移除
+            {t('common.remove')}
           </button>
         </div>
       ))}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="btn-ghost btn-sm" onClick={() => addBinding(bindings, setter)}>添加用户池</button>
+        <button className="btn-ghost btn-sm" onClick={() => addBinding(bindings, setter)}>{t('rounds.addPool')}</button>
         <span style={{ color: bindingTotal(bindings) === 100 ? '#66bb6a' : '#ffd700', fontSize: 13 }}>
-          总概率 {bindingTotal(bindings)}%
+          {t('rounds.totalProbability', { n: bindingTotal(bindings) })}
         </span>
       </div>
     </div>
@@ -178,20 +180,20 @@ export default function RoundManager() {
 
   return (
     <div className="manager-panel">
-      <h2>轮次管理</h2>
+      <h2>{t('rounds.title')}</h2>
 
       <div className="admin-card">
-        <div className="admin-card-header">添加轮次</div>
+        <div className="admin-card-header">{t('rounds.addCard')}</div>
         <div className="add-form" style={{ alignItems: 'flex-start' }}>
           <input
             type="text"
             value={newName}
             onChange={e => setNewName(e.target.value)}
-            placeholder="输入轮次名称"
+            placeholder={t('rounds.namePlaceholder')}
             style={{ flex: '0 0 180px', minWidth: 140 }}
           />
           {renderBindingEditor(newBindings, setNewBindings)}
-          <button className="btn-primary" onClick={handleAdd}>添加轮次</button>
+          <button className="btn-primary" onClick={handleAdd}>{t('rounds.add')}</button>
         </div>
       </div>
 
@@ -206,8 +208,8 @@ export default function RoundManager() {
                   style={{ flex: '0 0 160px' }}
                 />
                 {renderBindingEditor(editBindings, setEditBindings)}
-                <button className="btn-primary btn-sm" onClick={() => handleUpdate(round.id)}>保存</button>
-                <button className="btn-ghost btn-sm" onClick={() => setEditingId(null)}>取消</button>
+                <button className="btn-primary btn-sm" onClick={() => handleUpdate(round.id)}>{t('common.save')}</button>
+                <button className="btn-ghost btn-sm" onClick={() => setEditingId(null)}>{t('common.cancel')}</button>
               </>
             ) : (
               <>
@@ -221,8 +223,8 @@ export default function RoundManager() {
                   setEditingId(round.id);
                   setEditName(round.name);
                   setEditBindings(legacyBindings(round));
-                }}>编辑</button>
-                <button className="btn-danger btn-sm" onClick={() => handleDelete(round.id)}>删除</button>
+                }}>{t('common.edit')}</button>
+                <button className="btn-danger btn-sm" onClick={() => handleDelete(round.id)}>{t('common.delete')}</button>
               </>
             )}
           </li>
@@ -231,7 +233,7 @@ export default function RoundManager() {
 
       {rounds.length === 0 && (
         <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: 20, fontSize: 14 }}>
-          暂无轮次，请添加
+          {t('rounds.empty')}
         </p>
       )}
     </div>

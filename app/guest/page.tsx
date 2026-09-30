@@ -1,6 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import LanguageSwitch from '../components/LanguageSwitch';
+import { useI18n } from '@/lib/i18n/useI18n';
+import type { TranslationKey } from '@/lib/i18n';
 
 interface Prize {
   id: string;
@@ -47,11 +50,20 @@ function normalizeDrawCount(count: number, maxDraw: number): number {
   return Math.min(Math.max(Math.floor(count), 1), maxDraw);
 }
 
+/**
+ * 错误信息存成「文案 key 或服务端原文」二选一。
+ *
+ * 存 key 而不是直接存翻译好的字符串，好处是切换语言时错误提示会跟着变；
+ * 服务端返回的原文（data.error）则原样展示，因为它属于后端数据。
+ */
+type ErrorMessage = { key: TranslationKey } | { text: string };
+
 export default function GuestDrawPage() {
+  const { t } = useI18n('front');
   const [state, setState] = useState<GuestState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<ErrorMessage | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
@@ -68,9 +80,9 @@ export default function GuestDrawPage() {
       if (!res.ok) throw new Error('Failed to load state');
       const data = await res.json() as GuestState;
       setState(data);
-      setError('');
+      setError(null);
     } catch {
-      setError('状态同步失败');
+      setError({ key: 'guest.stateFailed' });
     } finally {
       setLoading(false);
     }
@@ -105,7 +117,7 @@ export default function GuestDrawPage() {
           const message = JSON.parse(event.data) as WSMessage;
           if (message.type === 'state_update') {
             setState(message.payload as GuestState);
-            setError('');
+            setError(null);
           }
           if (message.type === 'rolling_start') {
             const payload = message.payload as { count?: number; prizeId?: string };
@@ -145,7 +157,7 @@ export default function GuestDrawPage() {
   const handleStart = async () => {
     if (!state?.currentPrizeId || maxDrawCount <= 0) return;
     setBusy(true);
-    setError('');
+    setError(null);
     try {
       const count = normalizeDrawCount(state.drawCount, maxDrawCount);
       const res = await fetch('/api/control/start', {
@@ -154,11 +166,12 @@ export default function GuestDrawPage() {
         body: JSON.stringify({ count, prizeId: state.currentPrizeId }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '开始抽奖失败');
+      // 服务端错误原文优先（它是后端数据），没有才退回本地文案
+      if (!res.ok) throw new Error(data.error || t('guest.startFailed'));
       setState(prev => prev ? { ...prev, isRolling: true, drawCount: count } : prev);
       await fetchState();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '开始抽奖失败');
+      setError({ text: err instanceof Error ? err.message : t('guest.startFailed') });
     } finally {
       setBusy(false);
     }
@@ -166,11 +179,11 @@ export default function GuestDrawPage() {
 
   const handleStop = async () => {
     setBusy(true);
-    setError('');
+    setError(null);
     try {
       const res = await fetch('/api/control/stop', { method: 'POST' });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || '停止抽奖失败');
+      if (!res.ok) throw new Error(data.error || t('guest.stopFailed'));
       setState(prev => prev ? {
         ...prev,
         isRolling: false,
@@ -179,7 +192,7 @@ export default function GuestDrawPage() {
       } : prev);
       await fetchState();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '停止抽奖失败');
+      setError({ text: err instanceof Error ? err.message : t('guest.stopFailed') });
       await fetchState();
     } finally {
       setBusy(false);
@@ -202,24 +215,31 @@ export default function GuestDrawPage() {
       <div className="guest-topbar">
         <div>
           <div className="guest-kicker">Lucky Draw</div>
-          <h1>嘉宾抽奖</h1>
+          <h1>{t('guest.title')}</h1>
         </div>
+        <LanguageSwitch scope="front" className="lang-switch-inline" />
       </div>
 
       <section className="guest-stage">
         <div className="guest-prize-area">
-          <div className="guest-round">{currentRound?.name || '等待控制台'}</div>
+          <div className="guest-round">{currentRound?.name || t('guest.roundWaiting')}</div>
           <div className="guest-prize-level" style={{ color: currentPrize?.color || '#ffd700' }}>
-            {currentPrize?.level || '未选择奖品'}
+            {currentPrize?.level || t('guest.noPrize')}
           </div>
-          <div className="guest-prize-name">{currentPrize?.name || '请先在控制台选择本次奖品'}</div>
+          <div className="guest-prize-name">{currentPrize?.name || t('guest.selectPrize')}</div>
           {currentPrize?.sponsor && <div className="guest-sponsor">{currentPrize.sponsor}</div>}
-          {error && <div className="guest-error">{error}</div>}
+          {error && (
+            <div className="guest-error">{'key' in error ? t(error.key) : error.text}</div>
+          )}
         </div>
 
         <div className="guest-action-area">
           <div className="guest-action-copy">
-            {state?.isRolling ? '抽奖进行中' : currentPrize ? '请点击按钮启动本次抽奖' : '等待控制台选择奖品'}
+            {state?.isRolling
+              ? t('guest.rolling')
+              : currentPrize
+                ? t('guest.ready')
+                : t('guest.waiting')}
           </div>
           <button
             type="button"
@@ -227,7 +247,7 @@ export default function GuestDrawPage() {
             onClick={handlePrimaryAction}
             disabled={disabled}
           >
-            {busy ? '处理中' : state?.isRolling ? '停止抽奖' : '开始抽奖'}
+            {busy ? t('guest.processing') : state?.isRolling ? t('guest.stop') : t('guest.start')}
           </button>
         </div>
       </section>
