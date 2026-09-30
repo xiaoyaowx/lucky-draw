@@ -26,6 +26,27 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# 一键启动脚本产生的运行日志与 PID 状态文件
+/logs/
+
+# 运行时数据：抽奖状态、奖品、用户池、签到池、显示状态。
+# 每次跑一次抽奖都会变，而且 user-pools.json / live-pool.json 里存的是
+# 真实参与者的姓名与手机号 —— 属于现场数据，不是代码，不入库。
+# 程序读不到这些文件时会退回默认配置（见 lib/lottery.ts 的 safeReadJSON
+# 与 lib/user-pools.ts），所以克隆下来是干净的空系统，能直接跑。
+/data/*
+!/data/.gitkeep
+
+# 名单导入用的示例数据
+/test-data/
+
+# 后台上传的展示底图，同 public/prizes/ 的道理
+/public/backgrounds/*
+!/public/backgrounds/.gitkeep
+
+# Claude Code 的本机权限配置（含本机绝对路径与构建产物哈希，换台机器就失效）
+/.claude/settings.local.json
+
 # local env files
 .env*.local
 .env
