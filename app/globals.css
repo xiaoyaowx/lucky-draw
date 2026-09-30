@@ -59,13 +59,33 @@ body {
   align-items: center;
   justify-content: center;
   padding: 40px;
+  /*
+   * 这个 30 必须和 lib/display-layout.ts 里的 SECTION_GAP 保持一致 ——
+   * 布局是按「总高 - 奖品区 - 这一段的间距」算出来的。
+   */
   gap: 30px;
+  /* 兜底：号码区是算好尺寸的，真放不下时宁可裁掉也不能溢出去压住奖品信息 */
+  overflow: hidden;
 }
 
 .main-display h1 {
   font-size: 56px;
   color: #ffd700;
   text-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * 奖品区外层占位块。
+ * 高度由 JS 设成「自然高度 × 缩放比例」；内层 .prize-info 用 transform 缩放。
+ * 之所以要分两层：transform 不改变布局尺寸，所以内层的 offsetHeight 永远是自然高度，
+ * 测出来稳定，不会和「按测量值算缩放」互相追着改。
+ */
+.prize-slot {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .prize-info {
@@ -128,8 +148,15 @@ body {
   margin-top: 5px;
 }
 
+/*
+ * 号码区吃掉奖品区之外的全部剩余高度。
+ * flex:1 + min-height:0 是关键：默认 min-height:auto 会让它拒绝收缩到内容以下，
+ * 于是内容一多就顶破容器 —— 那正是号码压住奖品信息的直接原因。
+ */
 .number-display {
-  min-height: 280px;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -140,12 +167,11 @@ body {
   color: rgba(255, 255, 255, 0.6);
 }
 
+/* 列数与卡片尺寸由 JS 精确定好（见 lib/display-layout.ts），这里不再自己换行 */
 .numbers-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   justify-content: center;
-  gap: 15px;
-  max-width: 1100px;
+  align-content: center;
 }
 
 .number-card {
@@ -1406,11 +1432,33 @@ body {
   margin: 0 auto;
 }
 
+/* 语言开关独占一行放在标题上方，避免和居中的标题抢位置 */
+.control-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
 .control-title {
   font-size: 28px;
   color: #ffd700;
   text-align: center;
   margin-bottom: 30px;
+  width: 100%;
+}
+
+/* 管理后台顶栏：标题在左、语言开关在右 */
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-header .admin-title {
+  margin: 0;
 }
 
 .control-section {
@@ -1872,4 +1920,394 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* 语言切换开关（中文 | English） */
+.lang-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.lang-switch button {
+  padding: 5px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lang-switch button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lang-switch button.active {
+  background: rgba(255, 215, 0, 0.16);
+  color: #ffd700;
+  font-weight: 600;
+}
+
+/*
+ * 展示屏专用：平时完全隐形，鼠标移到右上角才浮现。
+ *
+ * 大屏是给全场看的，语言开关属于「运维控件」，不该出现在观众视野里；
+ * 但它又必须点得到，所以固定在右上角、保持接收鼠标事件，只是透明。
+ *
+ * 注意不能用 display:none 或 visibility:hidden —— 那样 mouseenter 永远不会触发，
+ * 控件就彻底够不着了。
+ */
+.lang-switch-floating {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 30;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+/* 隐形控件必须给一个宽容的命中区，否则要精准指到那 122x34 的小方块才出得来。
+   用伪元素往外扩 14px：不改变视觉位置，也不影响 .lang-switch 自己的样式。 */
+.lang-switch-floating::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+}
+
+/* ::before 是绝对定位的，会盖在静态定位的按钮之上 —— 不抬按钮的话，
+   扩出来的命中区会把点击整个吞掉，看起来就是「点了没反应」。
+   伪元素只负责接收 hover，点击必须落到按钮上。 */
+.lang-switch-floating button {
+  position: relative;
+  z-index: 1;
+}
+
+.lang-switch-floating:hover {
+  opacity: 1;
+}
+
+/*
+ * 键盘用户 Tab 过来也要看得见。
+ *
+ * 这里用 :focus-visible 而不是 :focus-within：鼠标点击也会产生焦点，而焦点会一直
+ * 留在按钮上 —— 用 :focus-within 的话，现场点一下切换语言，这个控件就再也不消失了，
+ * 那就违背了「不指它就隐藏」的初衷。:focus-visible 只匹配键盘焦点，鼠标点击不算。
+ *
+ * 单独成一条规则（不与上面的 :hover 合并成选择器列表）：万一浏览器不认 :has()，
+ * CSS 会丢掉**整条**规则，合并写会把 hover 一起弄没。
+ */
+.lang-switch-floating:has(button:focus-visible) {
+  opacity: 1;
+}
+
+/* 签到/嘉宾页顶栏里的语言开关 */
+.lang-switch-inline {
+  flex: 0 0 auto;
+}
+
+/* 成员编辑弹层 */
+.member-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.member-editor {
+  width: 100%;
+  max-width: 460px;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: #131a24;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.member-editor h3 {
+  margin: 0 0 16px;
+  font-size: 17px;
+  color: #ffd700;
+}
+
+.member-editor-field {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.member-editor-field span {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.member-editor-field input,
+.member-editor-field select {
+  width: 100%;
+}
+
+.member-editor-field .required-mark {
+  color: #ff6b6b;
+  margin-left: 3px;
+}
+
+.member-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.member-editor-message {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #ff6b6b;
+}
+
+/* 导入模式单选 */
+.import-mode-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.import-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.import-mode-option:hover {
+  border-color: rgba(255, 215, 0, 0.3);
+}
+
+.import-mode-option.active {
+  border-color: rgba(255, 215, 0, 0.55);
+  background: rgba(255, 215, 0, 0.07);
+}
+
+.import-mode-option input {
+  margin-top: 3px;
+  flex: 0 0 auto;
+}
+
+.import-mode-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.import-mode-title {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 600;
+}
+
+.import-mode-hint {
+  font-size: 12px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* 导入：文件区 */
+.import-file-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.import-dropzone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 68px;
+  padding: 14px 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.import-dropzone:hover {
+  border-color: rgba(255, 215, 0, 0.35);
+  background: rgba(255, 215, 0, 0.04);
+}
+
+.import-dropzone.dragover {
+  border-color: rgba(255, 215, 0, 0.65);
+  background: rgba(255, 215, 0, 0.09);
+}
+
+.import-dropzone.uploading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* 已选中文件时改成横向一行，给预览腾出纵向空间 */
+.import-dropzone.has-file {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 12px;
+  border-style: solid;
+  border-color: rgba(76, 175, 80, 0.4);
+  background: rgba(76, 175, 80, 0.07);
+  text-align: left;
+}
+
+.import-file-title {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.import-file-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.import-file-name {
+  font-size: 13px;
+  color: #66bb6a;
+  word-break: break-all;
+}
+
+.import-file-row > button {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+/* 导入：多工作表页签 */
+.import-sheet-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.import-sheet-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-right: 2px;
+}
+
+.import-sheet-btn {
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.import-sheet-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 215, 0, 0.35);
+}
+
+.import-sheet-btn.active {
+  background: rgba(255, 215, 0, 0.15);
+  border-color: rgba(255, 215, 0, 0.5);
+  color: #ffd700;
+  font-weight: 600;
+}
+
+.import-sheet-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.import-paste-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 6px;
+}
+
+/* 导入：原始行预览 */
+.import-preview {
+  margin-bottom: 12px;
+}
+
+.import-preview-title {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 6px;
+}
+
+.import-preview-scroll {
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.import-preview-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.import-preview-table td {
+  padding: 5px 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.import-preview-table tr.header-row td {
+  background: rgba(255, 215, 0, 0.08);
+  color: #ffd700;
+  font-weight: 600;
+}
+
+/* 成员预览的搜索框 + 新增成员按钮 */
+.pool-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pool-preview-toolbar .pool-search-input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* 成员表格里的行内操作按钮 */
+.pool-member-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.pool-member-actions button {
+  padding: 3px 9px;
+  font-size: 12px;
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLivePool, registerEmployee, setLivePoolOpen, clearLivePool } from '@/lib/live-pool';
+import { getLivePool, registerEmployee, setLivePoolOpen, clearLivePool, RegisterCode } from '@/lib/live-pool';
 import { getConfig } from '@/lib/lottery';
 import { getFullState } from '@/lib/full-state';
 import { broadcastStateUpdate } from '@/lib/ws-manager';
@@ -37,12 +37,12 @@ export async function POST(request: NextRequest) {
     const registerSettings = config.registerSettings || { length: 6, allowLetters: false };
 
     if (typeof employeeId !== 'string') {
-      return NextResponse.json({ success: false, message: '工号格式错误' }, { status: 400 });
+      return NextResponse.json({ success: false, code: 'empty', message: '工号格式错误' }, { status: 400 });
     }
 
     const trimmedId = employeeId.trim();
     if (!trimmedId) {
-      return NextResponse.json({ success: false, message: '工号不能为空' }, { status: 400 });
+      return NextResponse.json({ success: false, code: 'empty', message: '工号不能为空' }, { status: 400 });
     }
 
     const normalized = registerSettings.allowLetters
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          code: (registerSettings.allowLetters ? 'formatAlnum' : 'formatDigits') satisfies RegisterCode,
           message: registerSettings.allowLetters ? '工号只能包含字母和数字' : '工号只能包含数字',
         },
         { status: 400 }
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
+          code: (registerSettings.allowLetters ? 'lengthAlnum' : 'lengthDigits') satisfies RegisterCode,
           message: registerSettings.allowLetters
             ? `工号应为 ${registerSettings.length} 位字母或数字`
             : `工号应为 ${registerSettings.length} 位数字`,
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (error) {
     console.error('Error:', error);
-    return NextResponse.json({ success: false, message: '登记失败' }, { status: 500 });
+    return NextResponse.json({ success: false, code: 'error', message: '登记失败' }, { status: 500 });
   }
 }
 

@@ -6,6 +6,15 @@
   justify-content: center;
   padding: 20px;
   font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  /* 语言开关绝对定位到右上角，所以容器要作为定位参照 */
+  position: relative;
+}
+
+/* 语言开关不能挤占卡片布局，单独浮在右上角 */
+.register-language {
+  position: absolute;
+  top: 18px;
+  right: 18px;
 }
 
 .register-card {

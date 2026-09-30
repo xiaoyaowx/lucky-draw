@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 interface FontSizeConfig {
   prizeLevel: number;
@@ -119,7 +120,14 @@ const DEFAULT_PARTICIPANT_SCHEMA: ParticipantSchema = {
   ],
 };
 
+/** 面板内的操作反馈：成功用绿色、失败用红色，不再靠猜文案里有没有「失败」。 */
+interface PanelMessage {
+  kind: 'success' | 'error';
+  text: string;
+}
+
 export default function ConfigPanel() {
+  const { t } = useI18n('admin');
   const [config, setConfig] = useState<Config | null>(null);
   const [allPrizes, setAllPrizes] = useState<Prize[]>([]);
   const [calPrizeId, setCalPrizeId] = useState('');
@@ -127,7 +135,7 @@ export default function ConfigPanel() {
   const [calMessage, setCalMessage] = useState('');
   const [numberPool, setNumberPool] = useState<string[]>([]);
   const [userPools, setUserPools] = useState<UserPool[]>([]);
-  const [schemaMessage, setSchemaMessage] = useState('');
+  const [schemaMessage, setSchemaMessage] = useState<PanelMessage | null>(null);
   const [activeSection, setActiveSection] = useState<SettingSection>('basic');
   const [backgroundUploading, setBackgroundUploading] = useState(false);
   const [backgroundDragging, setBackgroundDragging] = useState(false);
@@ -231,20 +239,20 @@ export default function ConfigPanel() {
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || '保存底图失败');
+      alert(data.error || t('config.bgSaveFailed'));
       return;
     }
     setConfig(data.config);
-  }, [config]);
+  }, [config, t]);
 
   const uploadBackgroundFile = useCallback(async (file: File) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('仅支持 jpg/png/gif/webp 格式');
+      alert(t('config.errorType'));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('文件大小不能超过 5MB');
+      alert(t('config.errorSize'));
       return;
     }
 
@@ -256,16 +264,16 @@ export default function ConfigPanel() {
       const res = await fetch('/api/admin/upload', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok || !data.url) {
-        alert(data.error || '上传失败');
+        alert(data.error || t('config.errorUpload'));
         return;
       }
       await saveBackgroundImage(data.url);
     } catch {
-      alert('上传失败');
+      alert(t('config.errorUpload'));
     } finally {
       setBackgroundUploading(false);
     }
-  }, [saveBackgroundImage]);
+  }, [saveBackgroundImage, t]);
 
   const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -301,7 +309,8 @@ export default function ConfigPanel() {
         ...participantSchema.fields,
         {
           key: `field${nextIndex}`,
-          label: `字段${nextIndex}`,
+          // 默认标签按当前界面语言落库：这是管理员此刻能看到并会去修改的值
+          label: t('config.fieldDefaultLabel', { n: nextIndex }),
           type: 'text',
           required: false,
           visible: true,
@@ -323,7 +332,7 @@ export default function ConfigPanel() {
 
   const handleSaveParticipantSchema = async () => {
     if (!config) return;
-    setSchemaMessage('');
+    setSchemaMessage(null);
     const res = await fetch('/api/admin/config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -331,32 +340,32 @@ export default function ConfigPanel() {
     });
     const data = await res.json();
     if (!res.ok) {
-      setSchemaMessage(data.error || '保存失败');
+      setSchemaMessage({ kind: 'error', text: data.error || t('config.saveFailed') });
       return;
     }
     setConfig(data.config);
-    setSchemaMessage('已保存');
+    setSchemaMessage({ kind: 'success', text: t('config.saved') });
   };
 
-  if (!config) return <div>加载中...</div>;
+  if (!config) return <div>{t('common.loading')}</div>;
 
   const fontSizes = config.fontSizes || DEFAULT_FONT_SIZES;
   const fontColors = config.fontColors || DEFAULT_FONT_COLORS;
   const displaySettings = config.displaySettings || { showQuantity: true, showSponsor: true, showNumberBorder: true, maskPhone: false };
   const backgroundImage = config.backgroundImage || '/bg.jpg';
   const settingsNav: { id: SettingSection; label: string; description: string }[] = [
-    { id: 'basic', label: '基本设置', description: '中奖规则与布局数量' },
-    { id: 'participants', label: '参与者字段', description: `${participantSchema.fields.length} 个字段` },
-    { id: 'display', label: '展示样式', description: '显示项、颜色、字体' },
-    { id: 'calibration', label: '抽样校准', description: `${Object.keys(config.calibration || {}).length} 个奖项` },
+    { id: 'basic', label: t('config.navBasic'), description: t('config.navBasicDesc') },
+    { id: 'participants', label: t('config.navParticipants'), description: t('config.navParticipantsDesc', { n: participantSchema.fields.length }) },
+    { id: 'display', label: t('config.navDisplay'), description: t('config.navDisplayDesc') },
+    { id: 'calibration', label: t('config.navCalibration'), description: t('config.navCalibrationDesc', { n: Object.keys(config.calibration || {}).length }) },
   ];
 
   return (
     <div className="manager-panel">
-      <h2>系统设置</h2>
+      <h2>{t('config.title')}</h2>
 
       <div className="settings-layout">
-        <aside className="settings-sidebar" aria-label="系统设置分组">
+        <aside className="settings-sidebar" aria-label={t('config.navAria')}>
           {settingsNav.map(item => (
             <button
               key={item.id}
@@ -374,7 +383,7 @@ export default function ConfigPanel() {
           {activeSection === 'basic' && (
             <div className="settings-section-stack">
               <div className="admin-card">
-                <div className="admin-card-header">基本设置</div>
+                <div className="admin-card-header">{t('config.navBasic')}</div>
 
         <div className="config-item">
           <label>
@@ -383,18 +392,18 @@ export default function ConfigPanel() {
               checked={config.allowRepeatWin}
               onChange={handleToggle}
             />
-            允许重复中奖（跨奖项）
+            {t('config.allowRepeatWin')}
           </label>
           <p className="config-hint">
             {config.allowRepeatWin
-              ? '已开启：同一号码可在不同奖项中重复中奖'
-              : '已关闭：已中奖号码不能再次中奖'}
+              ? t('config.allowRepeatWinOn')
+              : t('config.allowRepeatWinOff')}
           </p>
         </div>
 
         <div className="config-item">
           <label>
-            每行显示数量
+            {t('config.numbersPerRow')}
             <input
               type="number"
               min="1"
@@ -404,7 +413,7 @@ export default function ConfigPanel() {
               style={{ width: 60 }}
             />
           </label>
-          <p className="config-hint">抽奖展示页面每行显示的号码数量（1-20）</p>
+          <p className="config-hint">{t('config.numbersPerRowHint')}</p>
         </div>
       </div>
             </div>
@@ -413,14 +422,14 @@ export default function ConfigPanel() {
           {activeSection === 'participants' && (
             <div className="settings-section-stack">
               <div className="admin-card">
-                <div className="admin-card-header">参与者字段</div>
+                <div className="admin-card-header">{t('config.navParticipants')}</div>
         <p className="config-hint" style={{ marginTop: 0 }}>
-          默认只使用号码字段。新增字段后，所有用户池、签到登记、中奖展示和导出都会按这套字段规范处理。
+          {t('config.participantHint')}
         </p>
 
         <div className="participant-schema-controls">
           <label>
-            <span>唯一字段</span>
+            <span>{t('config.uniqueField')}</span>
             <select
               value={participantSchema.uniqueField}
               onChange={(e) => updateParticipantSchemaLocal({ ...participantSchema, uniqueField: e.target.value })}
@@ -433,24 +442,24 @@ export default function ConfigPanel() {
           </label>
 
           <label>
-            <span>展示模板</span>
+            <span>{t('config.displayTemplate')}</span>
             <input
               value={participantSchema.displayTemplate}
               onChange={(e) => updateParticipantSchemaLocal({ ...participantSchema, displayTemplate: e.target.value })}
               placeholder="{number}"
             />
-            <small>例如 {'{name}（{number}）'}</small>
+            <small>{t('config.displayTemplateHint', { example: '{name}（{number}）' })}</small>
           </label>
         </div>
 
         <div className="participant-fields">
           <div className="participant-field-header" aria-hidden="true">
-            <span>字段 Key</span>
-            <span>显示名称</span>
-            <span>类型</span>
-            <span>选项</span>
-            <span>脱敏</span>
-            <span>操作</span>
+            <span>{t('config.colKey')}</span>
+            <span>{t('config.colLabel')}</span>
+            <span>{t('config.colType')}</span>
+            <span>{t('config.colOptions')}</span>
+            <span>{t('config.colMask')}</span>
+            <span>{t('config.colActions')}</span>
           </div>
           {participantSchema.fields.map((field, index) => (
             <div
@@ -458,33 +467,33 @@ export default function ConfigPanel() {
               className="participant-field-row"
             >
               <label className="participant-field-cell">
-                <span>字段 Key</span>
+                <span>{t('config.colKey')}</span>
                 <input
                   value={field.key}
                   onChange={(e) => handleFieldChange(index, { key: e.target.value })}
-                  placeholder="字段 key"
+                  placeholder={t('config.fieldKeyPlaceholder')}
                   disabled={field.key === participantSchema.uniqueField}
                 />
               </label>
               <label className="participant-field-cell">
-                <span>显示名称</span>
+                <span>{t('config.colLabel')}</span>
                 <input
                   value={field.label}
                   onChange={(e) => handleFieldChange(index, { label: e.target.value })}
-                  placeholder="显示名称"
+                  placeholder={t('config.labelPlaceholder')}
                 />
               </label>
               <label className="participant-field-cell">
-                <span>类型</span>
+                <span>{t('config.colType')}</span>
                 <select
                   value={field.type}
                   onChange={(e) => handleFieldChange(index, { type: e.target.value as PoolFieldType })}
                 >
-                  <option value="text">文本</option>
-                  <option value="number">数字</option>
-                  <option value="phone">手机号</option>
-                  <option value="email">邮箱</option>
-                  <option value="select">选项</option>
+                  <option value="text">{t('config.typeText')}</option>
+                  <option value="number">{t('config.typeNumber')}</option>
+                  <option value="phone">{t('config.typePhone')}</option>
+                  <option value="email">{t('config.typeEmail')}</option>
+                  <option value="select">{t('config.typeSelect')}</option>
                 </select>
               </label>
               <div className="participant-field-options">
@@ -495,7 +504,7 @@ export default function ConfigPanel() {
                     disabled={field.key === participantSchema.uniqueField}
                     onChange={(e) => handleFieldChange(index, { required: e.target.checked })}
                   />
-                  必填
+                  {t('config.required')}
                 </label>
                 <label>
                   <input
@@ -503,7 +512,7 @@ export default function ConfigPanel() {
                     checked={field.visible ?? true}
                     onChange={(e) => handleFieldChange(index, { visible: e.target.checked })}
                   />
-                  展示
+                  {t('config.visible')}
                 </label>
                 <label>
                   <input
@@ -511,17 +520,17 @@ export default function ConfigPanel() {
                     checked={field.searchable ?? true}
                     onChange={(e) => handleFieldChange(index, { searchable: e.target.checked })}
                   />
-                  搜索
+                  {t('config.searchable')}
                 </label>
               </div>
               <label className="participant-field-cell">
-                <span>脱敏</span>
+                <span>{t('config.colMask')}</span>
                 <select
                   value={field.mask || 'none'}
                   onChange={(e) => handleFieldChange(index, { mask: e.target.value as 'none' | 'phone' })}
                 >
-                  <option value="none">不脱敏</option>
-                  <option value="phone">手机号脱敏</option>
+                  <option value="none">{t('config.maskNone')}</option>
+                  <option value="phone">{t('config.maskPhone')}</option>
                 </select>
               </label>
               <button
@@ -529,19 +538,19 @@ export default function ConfigPanel() {
                 onClick={() => handleRemoveField(index)}
                 disabled={field.key === participantSchema.uniqueField}
               >
-                删除
+                {t('common.delete')}
               </button>
             </div>
           ))}
         </div>
 
         <div className="btns" style={{ marginTop: 14 }}>
-          <button onClick={handleAddField}>新增字段</button>
-          <button className="btn-primary" onClick={handleSaveParticipantSchema}>保存字段设置</button>
+          <button onClick={handleAddField}>{t('config.addField')}</button>
+          <button className="btn-primary" onClick={handleSaveParticipantSchema}>{t('config.saveSchema')}</button>
         </div>
         {schemaMessage && (
-          <p style={{ color: schemaMessage === '已保存' ? '#4ade80' : '#ff6b6b', fontSize: 13, marginTop: 10 }}>
-            {schemaMessage}
+          <p style={{ color: schemaMessage.kind === 'success' ? '#4ade80' : '#ff6b6b', fontSize: 13, marginTop: 10 }}>
+            {schemaMessage.text}
           </p>
         )}
       </div>
@@ -551,9 +560,9 @@ export default function ConfigPanel() {
           {activeSection === 'display' && (
             <div className="settings-section-stack">
               <div className="admin-card">
-                <div className="admin-card-header">抽奖底图</div>
+                <div className="admin-card-header">{t('config.bgTitle')}</div>
                 <p className="config-hint" style={{ marginTop: 0 }}>
-                  用于大屏抽奖展示页，嘉宾抽奖页不使用底图。
+                  {t('config.bgHint')}
                 </p>
                 <input
                   ref={backgroundInputRef}
@@ -564,14 +573,14 @@ export default function ConfigPanel() {
                 />
                 {backgroundImage ? (
                   <div className="upload-preview background-preview">
-                    <img src={backgroundImage} alt="抽奖底图" />
+                    <img src={backgroundImage} alt={t('config.bgAlt')} />
                     <div className="upload-preview-actions">
                       <button
                         type="button"
                         onClick={() => backgroundInputRef.current?.click()}
                         disabled={backgroundUploading}
                       >
-                        更换
+                        {t('config.bgChange')}
                       </button>
                       {backgroundImage !== '/bg.jpg' && (
                         <button
@@ -580,7 +589,7 @@ export default function ConfigPanel() {
                           onClick={() => saveBackgroundImage('/bg.jpg')}
                           disabled={backgroundUploading}
                         >
-                          恢复默认
+                          {t('config.bgRestore')}
                         </button>
                       )}
                     </div>
@@ -598,7 +607,7 @@ export default function ConfigPanel() {
                         <svg className="upload-spinner" viewBox="0 0 24 24" width="28" height="28">
                           <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeDasharray="50 20" />
                         </svg>
-                        <span>上传中...</span>
+                        <span>{t('config.uploading')}</span>
                       </>
                     ) : (
                       <>
@@ -606,8 +615,8 @@ export default function ConfigPanel() {
                           <path d="M12 16V4m0 0L8 8m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
                           <path d="M20 16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2" strokeLinecap="round" />
                         </svg>
-                        <span>点击或拖拽底图到此处</span>
-                        <span style={{ fontSize: 11, opacity: 0.5 }}>jpg / png / gif / webp, 最大 5MB</span>
+                        <span>{t('config.bgDropHint')}</span>
+                        <span style={{ fontSize: 11, opacity: 0.5 }}>{t('config.fileHint')}</span>
                       </>
                     )}
                   </div>
@@ -615,7 +624,7 @@ export default function ConfigPanel() {
               </div>
 
               <div className="admin-card">
-                <div className="admin-card-header">显示设置</div>
+                <div className="admin-card-header">{t('config.displaySettings')}</div>
 
         <div className="config-item">
           <label>
@@ -624,7 +633,7 @@ export default function ConfigPanel() {
               checked={displaySettings.showQuantity}
               onChange={() => handleDisplaySettingChange('showQuantity')}
             />
-            显示奖品数量
+            {t('config.showQuantity')}
           </label>
         </div>
 
@@ -635,7 +644,7 @@ export default function ConfigPanel() {
               checked={displaySettings.showSponsor}
               onChange={() => handleDisplaySettingChange('showSponsor')}
             />
-            显示赞助商
+            {t('config.showSponsor')}
           </label>
         </div>
 
@@ -646,7 +655,7 @@ export default function ConfigPanel() {
               checked={displaySettings.showNumberBorder ?? true}
               onChange={() => handleDisplaySettingChange('showNumberBorder')}
             />
-            显示号码边框
+            {t('config.showNumberBorder')}
           </label>
         </div>
 
@@ -657,18 +666,18 @@ export default function ConfigPanel() {
               checked={displaySettings.maskPhone ?? false}
               onChange={() => handleDisplaySettingChange('maskPhone')}
             />
-            隐藏手机号中间四位
+            {t('config.maskPhoneSetting')}
           </label>
-          <p className="config-hint">开启后 11 位号码显示为 138****8000</p>
+          <p className="config-hint">{t('config.maskPhoneHint')}</p>
         </div>
       </div>
 
       {/* 字体颜色 */}
       <div className="admin-card">
-        <div className="admin-card-header">字体颜色</div>
+        <div className="admin-card-header">{t('config.fontColors')}</div>
 
         <div className="form-row">
-          <label>奖品名称</label>
+          <label>{t('config.fontPrizeName')}</label>
           <input
             type="color"
             value={fontColors.prizeName}
@@ -678,7 +687,7 @@ export default function ConfigPanel() {
         </div>
 
         <div className="form-row">
-          <label>赞助商</label>
+          <label>{t('config.fontSponsor')}</label>
           <input
             type="color"
             value={fontColors.sponsor}
@@ -688,26 +697,26 @@ export default function ConfigPanel() {
         </div>
 
         <div className="form-row">
-          <label>抽奖号码</label>
+          <label>{t('config.fontNumber')}</label>
           <input
             type="color"
             value={fontColors.numberCard}
             onChange={(e) => handleColorChange('numberCard', e.target.value)}
           />
           <span className="color-hex">{fontColors.numberCard}</span>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>(含边框)</span>
+          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>{t('config.fontNumberHint')}</span>
         </div>
       </div>
 
       {/* 字体大小 */}
       <div className="admin-card">
-        <div className="admin-card-header">字体大小</div>
+        <div className="admin-card-header">{t('config.fontSizes')}</div>
 
         {([
-          ['prizeLevel', '奖项等级'],
-          ['prizeName', '奖品名称'],
-          ['sponsor', '赞助商'],
-          ['numberCard', '抽奖号码'],
+          ['prizeLevel', t('config.fontPrizeLevel')],
+          ['prizeName', t('config.fontPrizeName')],
+          ['sponsor', t('config.fontSponsor')],
+          ['numberCard', t('config.fontNumber')],
         ] as [keyof FontSizeConfig, string][]).map(([key, label]) => (
           <div className="form-row" key={key}>
             <label>{label}</label>
@@ -722,7 +731,7 @@ export default function ConfigPanel() {
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>px</span>
           </div>
         ))}
-        <p className="config-hint">设置展示页面的字体大小（10-200px），修改后自动保存</p>
+        <p className="config-hint">{t('config.fontSizesHint')}</p>
       </div>
             </div>
           )}
@@ -730,9 +739,9 @@ export default function ConfigPanel() {
           {activeSection === 'calibration' && (
             <div className="settings-section-stack">
               <div className="admin-card">
-                <div className="admin-card-header">抽样校准</div>
+                <div className="admin-card-header">{t('config.calibrationTitle')}</div>
         <p className="config-hint" style={{ marginTop: 0, marginBottom: 14 }}>
-          设置指定奖项的校准样本序列，用于结果验证
+          {t('config.calibrationHint')}
         </p>
 
         <div className="prize-form" style={{ marginBottom: 12 }}>
@@ -741,13 +750,13 @@ export default function ConfigPanel() {
             onChange={e => setCalPrizeId(e.target.value)}
             style={{ flex: '0 0 auto', minWidth: 140 }}
           >
-            <option value="">选择奖项</option>
+            <option value="">{t('config.calibrationPick')}</option>
             {allPrizes.map(p => (
               <option key={p.id} value={p.id}>{p.level} - {p.name}</option>
             ))}
           </select>
           <input
-            placeholder="号码，逗号分隔"
+            placeholder={t('config.calibrationNumbers')}
             value={calNumbers}
             onChange={e => setCalNumbers(e.target.value)}
             style={{ flex: 1 }}
@@ -771,7 +780,7 @@ export default function ConfigPanel() {
             if (!includesLive) {
               const invalid = numbers.filter(n => !validNumbers.has(n));
               if (invalid.length > 0) {
-                setCalMessage(`以下号码不在当前绑定用户池中: ${invalid.join(', ')}`);
+                setCalMessage(t('config.calibrationInvalid', { list: invalid.join(', ') }));
                 return;
               }
             }
@@ -785,7 +794,7 @@ export default function ConfigPanel() {
             setConfig({ ...config, calibration: newCal });
             setCalPrizeId('');
             setCalNumbers('');
-          }}>设置</button>
+          }}>{t('config.calibrationSet')}</button>
         </div>
 
         {calMessage && (
@@ -809,7 +818,7 @@ export default function ConfigPanel() {
                       body: JSON.stringify({ calibration: Object.keys(newCal).length > 0 ? newCal : {} }),
                     });
                     setConfig({ ...config, calibration: Object.keys(newCal).length > 0 ? newCal : undefined });
-                  }}>清除</button>
+                  }}>{t('config.calibrationClear')}</button>
                 </li>
               );
             })}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 interface Round {
   id: number;
@@ -19,6 +20,7 @@ interface Prize {
 }
 
 export default function PrizeManager() {
+  const { t } = useI18n('admin');
   const [rounds, setRounds] = useState<Round[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
   const [prizes, setPrizes] = useState<Prize[]>([]);
@@ -65,11 +67,11 @@ export default function PrizeManager() {
   const uploadFile = useCallback(async (file: File) => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      alert('仅支持 jpg/png/gif/webp 格式');
+      alert(t('prizes.errorType'));
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('文件大小不能超过 5MB');
+      alert(t('prizes.errorSize'));
       return;
     }
 
@@ -82,14 +84,14 @@ export default function PrizeManager() {
       if (res.ok && data.url) {
         setFormData(prev => ({ ...prev, image: data.url }));
       } else {
-        alert(data.error || '上传失败');
+        alert(data.error || t('prizes.errorUpload'));
       }
     } catch {
-      alert('上传失败');
+      alert(t('prizes.errorUpload'));
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [t]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,22 +146,22 @@ export default function PrizeManager() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('确定删除此奖品？')) return;
+    if (!confirm(t('prizes.confirmDelete'))) return;
     await fetch(`/api/admin/prizes/${id}`, { method: 'DELETE' });
     fetchPrizes();
   };
 
   return (
     <div className="manager-panel">
-      <h2>奖品管理</h2>
+      <h2>{t('prizes.title')}</h2>
 
       <div className="round-select">
-        <label>选择轮次：</label>
+        <label>{t('prizes.selectRound')}</label>
         <select
           value={selectedRound || ''}
           onChange={e => setSelectedRound(Number(e.target.value))}
         >
-          <option value="">请选择</option>
+          <option value="">{t('prizes.selectPlaceholder')}</option>
           {rounds.map(r => (
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
@@ -170,24 +172,24 @@ export default function PrizeManager() {
         <>
           <div className="admin-card">
             <div className="admin-card-header">
-              {editingId ? '编辑奖品' : '添加奖品'}
+              {editingId ? t('prizes.editTitle') : t('prizes.addTitle')}
             </div>
             <div className="prize-form">
               <input
-                placeholder="奖项等级"
+                placeholder={t('prizes.level')}
                 value={formData.level}
                 onChange={e => setFormData({ ...formData, level: e.target.value })}
                 style={{ minWidth: 90 }}
               />
               <input
-                placeholder="奖品名称"
+                placeholder={t('prizes.name')}
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 style={{ flex: 1, minWidth: 120 }}
               />
               <input
                 type="number"
-                placeholder="数量"
+                placeholder={t('prizes.quantity')}
                 value={formData.quantity}
                 onChange={e => setFormData({ ...formData, quantity: Number(e.target.value) })}
                 style={{ width: 70 }}
@@ -196,10 +198,10 @@ export default function PrizeManager() {
                 type="color"
                 value={formData.color}
                 onChange={e => setFormData({ ...formData, color: e.target.value })}
-                title="奖项颜色"
+                title={t('prizes.color')}
               />
               <input
-                placeholder="赞助商（选填）"
+                placeholder={t('prizes.sponsor')}
                 value={formData.sponsor}
                 onChange={e => setFormData({ ...formData, sponsor: e.target.value })}
                 style={{ minWidth: 100 }}
@@ -210,14 +212,14 @@ export default function PrizeManager() {
                   checked={formData.requireCheckIn}
                   onChange={e => setFormData({ ...formData, requireCheckIn: e.target.checked })}
                 />
-                仅已签到参与
+                {t('prizes.requireCheckIn')}
               </label>
-              <button className="btn-primary" onClick={handleSubmit}>{editingId ? '更新' : '添加'}</button>
-              {editingId && <button className="btn-ghost" onClick={resetForm}>取消</button>}
+              <button className="btn-primary" onClick={handleSubmit}>{editingId ? t('prizes.update') : t('common.add')}</button>
+              {editingId && <button className="btn-ghost" onClick={resetForm}>{t('common.cancel')}</button>}
             </div>
 
             <div className="pool-section" style={{ marginTop: 14 }}>
-              <h3 style={{ marginBottom: 10 }}>奖品配图（选填）</h3>
+              <h3 style={{ marginBottom: 10 }}>{t('prizes.imageTitle')}</h3>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -227,21 +229,21 @@ export default function PrizeManager() {
               />
               {formData.image ? (
                 <div className="upload-preview">
-                  <img src={formData.image} alt="奖品配图" />
+                  <img src={formData.image} alt={t('prizes.imageAlt')} />
                   <div className="upload-preview-actions">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={uploading}
                     >
-                      更换
+                      {t('prizes.change')}
                     </button>
                     <button
                       type="button"
                       className="btn-danger btn-sm"
                       onClick={handleRemoveImage}
                     >
-                      移除
+                      {t('common.remove')}
                     </button>
                   </div>
                 </div>
@@ -258,7 +260,7 @@ export default function PrizeManager() {
                       <svg className="upload-spinner" viewBox="0 0 24 24" width="28" height="28">
                         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth="2.5" strokeDasharray="50 20" />
                       </svg>
-                      <span>上传中...</span>
+                      <span>{t('prizes.uploading')}</span>
                     </>
                   ) : (
                     <>
@@ -266,8 +268,8 @@ export default function PrizeManager() {
                         <path d="M12 16V4m0 0L8 8m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
                         <path d="M20 16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2" strokeLinecap="round" />
                       </svg>
-                      <span>点击或拖拽图片到此处</span>
-                      <span style={{ fontSize: 11, opacity: 0.5 }}>jpg / png / gif / webp, 最大 5MB</span>
+                      <span>{t('prizes.dropHint')}</span>
+                      <span style={{ fontSize: 11, opacity: 0.5 }}>{t('prizes.fileHint')}</span>
                     </>
                   )}
                 </div>
@@ -299,17 +301,17 @@ export default function PrizeManager() {
                   <span style={{ flex: '0 0 auto', color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>{prize.sponsor}</span>
                 )}
                 {prize.requireCheckIn && (
-                  <span className="status-tag open" style={{ flex: '0 0 auto' }}>仅已签到</span>
+                  <span className="status-tag open" style={{ flex: '0 0 auto' }}>{t('control.checkInOnly')}</span>
                 )}
-                <button className="btn-sm" onClick={() => handleEdit(prize)}>编辑</button>
-                <button className="btn-danger btn-sm" onClick={() => handleDelete(prize.id)}>删除</button>
+                <button className="btn-sm" onClick={() => handleEdit(prize)}>{t('common.edit')}</button>
+                <button className="btn-danger btn-sm" onClick={() => handleDelete(prize.id)}>{t('common.delete')}</button>
               </li>
             ))}
           </ul>
 
           {prizes.length === 0 && (
             <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: 20, fontSize: 14 }}>
-              暂无奖品，请添加
+              {t('prizes.empty')}
             </p>
           )}
         </>
@@ -317,7 +319,7 @@ export default function PrizeManager() {
 
       {!selectedRound && (
         <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: 30, fontSize: 14 }}>
-          请先选择一个轮次
+          {t('prizes.pickRound')}
         </p>
       )}
     </div>
